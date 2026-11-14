@@ -1,0 +1,29 @@
+name: Checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+    steps:
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
+      - uses: actions/setup-python@90485b7ad25ff6932f80015b8a56a6546cd816a7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@436c65619b12c9e37ff20a4700145cc387898a7d
+        with:
+          node-version: '24'
+      - uses: astral-sh/setup-uv@963ce8fe9e4fb39553bd07a010f5e986c4dcff9d
+      - run: uv sync --frozen --group dev
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync ruff format --check .
+      - run: uv run --no-sync python -m unittest discover -s tests
+      - run: npm test

@@ -1,0 +1,19 @@
+:root {
+  color-scheme: light dark;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+body {
+  width: 280px;
+  margin: 0;
+  padding: 20px;
+  color: CanvasText;
+  background: Canvas;
+}
+
+h1 { margin: 0 0 8px; font-size: 22px; }
+p { margin: 0 0 16px; }
+button { display: block; width: 100%; margin: 8px 0; padding: 10px; font: inherit; cursor: pointer; }
+button:disabled { cursor: default; opacity: 0.5; }
+button:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+.note { margin-top: 16px; font-size: 12px; }

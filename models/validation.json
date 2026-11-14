@@ -1,0 +1,131 @@
+{
+  "checkpoint_step": 1500576,
+  "clock_mode": "native",
+  "browser_mode": "visible",
+  "exploration_enabled": false,
+  "completed_episodes": 3,
+  "planned_episodes": 10,
+  "stopped_by_user": true,
+  "max_seconds": 300,
+  "median_survival_seconds": 224.75709999999268,
+  "mean_score": 3551.3333333333335,
+  "bird_metrics": {
+    "50": {
+      "encounters": 57,
+      "passes": 57,
+      "collisions": 0
+    },
+    "75": {
+      "encounters": 65,
+      "passes": 64,
+      "collisions": 0
+    },
+    "100": {
+      "encounters": 45,
+      "passes": 45,
+      "collisions": 0
+    }
+  },
+  "records": [
+    {
+      "episode": 1,
+      "survival_seconds": 300.032199999985,
+      "score": 4626,
+      "truncated": true,
+      "collision": {
+        "motion": "time-limit"
+      },
+      "bird_metrics": {
+        "50": {
+          "encounters": 30,
+          "passes": 30,
+          "collisions": 0
+        },
+        "75": {
+          "encounters": 28,
+          "passes": 28,
+          "collisions": 0
+        },
+        "100": {
+          "encounters": 25,
+          "passes": 25,
+          "collisions": 0
+        }
+      }
+    },
+    {
+      "episode": 2,
+      "survival_seconds": 224.75709999999268,
+      "score": 3159,
+      "truncated": false,
+      "collision": {
+        "obstacle": {
+          "id": 522,
+          "x": 26,
+          "y": 90,
+          "width": 75,
+          "height": 50,
+          "type": "cactusLarge",
+          "speedOffset": 0
+        },
+        "motion": "descending",
+        "dino_height": 10,
+        "vertical_velocity": 5.798799999356269
+      },
+      "bird_metrics": {
+        "50": {
+          "encounters": 12,
+          "passes": 12,
+          "collisions": 0
+        },
+        "75": {
+          "encounters": 18,
+          "passes": 18,
+          "collisions": 0
+        },
+        "100": {
+          "encounters": 14,
+          "passes": 14,
+          "collisions": 0
+        }
+      }
+    },
+    {
+      "episode": 3,
+      "survival_seconds": 209.279999999999,
+      "score": 2869,
+      "truncated": false,
+      "collision": {
+        "obstacle": {
+          "id": 723,
+          "x": 25,
+          "y": 90,
+          "width": 25,
+          "height": 50,
+          "type": "cactusLarge",
+          "speedOffset": 0
+        },
+        "motion": "descending",
+        "dino_height": 11,
+        "vertical_velocity": 5.7879999999999985
+      },
+      "bird_metrics": {
+        "50": {
+          "encounters": 15,
+          "passes": 15,
+          "collisions": 0
+        },
+        "75": {
+          "encounters": 19,
+          "passes": 18,
+          "collisions": 0
+        },
+        "100": {
+          "encounters": 6,
+          "passes": 6,
+          "collisions": 0
+        }
+      }
+    }
+  ]
+}

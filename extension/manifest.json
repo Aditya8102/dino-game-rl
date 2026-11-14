@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Dino RL",
+  "description": "Play Chrome's native offline Dinosaur game with a locally trained DQN. Manual input pauses the agent.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "157",
+  "permissions": ["debugger"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Dino RL",
+    "default_popup": "popup.html"
+  }
+}
