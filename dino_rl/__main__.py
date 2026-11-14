@@ -38,7 +38,7 @@ def probability(value: str) -> float:
 def main() -> None:
     """Parse one command and configure the CPU-only runtime."""
     logging.basicConfig(level=os.environ.get("DINO_LOG_LEVEL", "INFO"), format="%(message)s")
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, fromfile_prefix_chars="@")
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("check", "train", "evaluate", "play"):
         sub = commands.add_parser(name)

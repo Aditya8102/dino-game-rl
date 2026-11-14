@@ -96,6 +96,8 @@ The check opens an isolated Chrome profile, verifies native movement and game se
 
 ## Train a model
 
+For the prepared fresh **five-million-step** experiment, follow the [start / stop / resume guide](docs/training-5m.md). Its settings are saved in [`configs/scratch-5m.args`](configs/scratch-5m.args); preparation does not start training.
+
 Start with one background game to check resource use:
 
 ```bash
@@ -193,6 +195,7 @@ dino_rl/                 Python package
 extension/               Installable extension and exported weights
 models/                  Small inference release, model card, validation results
 scripts/                 Policy export and clock-transfer diagnostic
+configs/                 Saved command arguments for planned experiments
 tests/                   Python, JavaScript and opt-in Chrome checks
 docs/                    Algorithm explanation, design, diagram and review
 runs/                    Local experiments, replay, logs and reports; ignored by Git

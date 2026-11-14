@@ -1,0 +1,17 @@
+train
+--run
+runs/dqn-scratch-5m
+--steps
+5000000
+--workers
+8
+--seed
+7
+--checkpoint-every
+50000
+--eval-episodes
+8
+--max-seconds
+300
+--exploration-final
+0.01

@@ -74,6 +74,76 @@ class FixedEpisode(gym.Env):
 
 
 class ContractTests(unittest.TestCase):
+    def test_fresh_training_starts_with_empty_learning_state_and_full_exploration(self):
+        torch.set_num_threads(1)
+        with TemporaryDirectory() as directory:
+            environment = DummyVecEnv([lambda: FixedEpisode(4) for _ in range(8)])
+            budget = SimpleNamespace(tick=lambda **kw: None, summary=lambda: {})
+            args = SimpleNamespace(
+                workers=8,
+                run=directory,
+                resume=None,
+                initialize_from=None,
+                show_browser=False,
+                seed=7,
+                max_seconds=300,
+                steps=5_000_000,
+                checkpoint_every=50_000,
+                eval_episodes=8,
+                exploration_final=0.01,
+            )
+
+            def inspect_before_learning(model, **kwargs):
+                self.assertEqual(model.num_timesteps, 0)
+                self.assertEqual(model._n_updates, 0)
+                self.assertEqual(model.replay_buffer.size(), 0)
+                self.assertEqual(model.policy.optimizer.state_dict()["state"], {})
+                self.assertEqual(model.n_envs, 8)
+                self.assertEqual(model.gradient_steps, 8)
+                self.assertEqual(model.train_freq.frequency, 4)
+                self.assertEqual(model.learning_starts, 5000)
+                self.assertEqual(model.target_update_interval, 1000)
+                self.assertEqual(model.replay_buffer.buffer_size * model.n_envs, 100_000)
+                self.assertEqual(model.batch_size, 64)
+                self.assertEqual(model.learning_rate, 0.0001)
+                self.assertEqual(model.gamma, 0.995)
+                self.assertEqual(model.device.type, "cpu")
+                widths = [
+                    (layer.in_features, layer.out_features)
+                    for layer in model.q_net.q_net
+                    if isinstance(layer, torch.nn.Linear)
+                ]
+                self.assertEqual(widths, [(28, 64), (64, 64), (64, 3)])
+                self.assertEqual(model.exploration_rate, 1.0)
+                for step, expected in ((0, 1.0), (25_000, 0.505), (50_000, 0.01)):
+                    self.assertAlmostEqual(model.exploration_schedule(1 - step / 50_000), expected)
+                raise RuntimeError("Fresh-state inspection finished before learning")
+
+            with (
+                patch("dino_rl.training.training_env", return_value=environment),
+                patch("dino_rl.training.CpuBudget", return_value=budget),
+                patch.object(DQN, "load") as load,
+                patch.object(DQN, "learn", inspect_before_learning),
+                patch.object(environment, "close", wraps=environment.close) as close,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "Fresh-state inspection finished"):
+                    train(args)
+                load.assert_not_called()
+                close.assert_called_once()
+            saved = json.loads((Path(directory) / "config.json").read_text())
+            self.assertNotIn("source_checkpoint", saved)
+            self.assertNotIn("resume_checkpoint", saved)
+            self.assertFalse((Path(directory) / "checkpoints").exists())
+
+    def test_fresh_run_refuses_to_overwrite_an_existing_run(self):
+        with TemporaryDirectory() as directory:
+            (Path(directory) / "config.json").write_text("{}")
+            args = SimpleNamespace(workers=8, run=directory, resume=None)
+            with patch("dino_rl.training.training_env") as create:
+                with self.assertRaisesRegex(ValueError, "This run already exists"):
+                    train(args)
+                create.assert_not_called()
+
     def test_cancelled_evaluation_does_not_publish_partial_results(self):
         environment = FixedEpisode(10)
         result = rollout(
