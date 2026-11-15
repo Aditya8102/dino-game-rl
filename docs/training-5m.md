@@ -1,8 +1,8 @@
 # Fresh five-million-step run
 
-**Prepared, not started.** Run the start command when you are ready. Nothing is scheduled to wake the laptop or begin training automatically.
+This recipe trains a new model from random weights. Use the start command for a new run and the resume command for an existing checkpoint. Current progress is recorded under `runs/dqn-scratch-5m/`; this document describes the procedure rather than live status.
 
-## Start tomorrow
+## Start a new run
 
 From the repository root:
 
@@ -63,7 +63,7 @@ The original default for a new CLI run is 5% final exploration. This recipe expl
 | Resume and saving | Existing regressions cover learning-state restoration, replay ordering, independent selection conditions and cancelled evaluations. |
 | Prepared command | CLI tests check all recipe arguments, absence of inherited weights, and explicit resume behavior without opening Chrome. |
 
-The implementation was checked against the installed Stable-Baselines3 2.9.2 source and its [official DQN documentation](https://stable-baselines3.readthedocs.io/en/master/modules/dqn.html). The preparation check passed 27 Python tests; five opt-in native Chrome tests were skipped because no browser behavior changed. The fresh-state test uses lightweight test environments and stops before learning. No real training run was launched. These checks verify the mechanics; only the new run's measured results can establish how well it learns from scratch.
+The implementation was checked against the installed Stable-Baselines3 2.9.2 source and its [official DQN documentation](https://stable-baselines3.readthedocs.io/en/master/modules/dqn.html). Preparation checks include fresh-state initialization, command parsing and resume behavior. The fresh-state test uses lightweight test environments and stops before learning. These checks verify the mechanics; only the new run's measured results can establish how well it learns from scratch.
 
 ## Watch the run
 
@@ -86,9 +86,11 @@ Open **http://localhost:6006**. TensorBoard data appears after learning starts; 
 
 The console also reports progress. JSON episode/evaluation logs, TensorBoard events and checkpoints stay under this run directory and are ignored by Git.
 
+When Codex starts the run in the background, console output goes to `runs/dqn-scratch-5m/train.log`. The trainer PID, process creation time and starting Git commit are saved in `process.json`. The existing TensorBoard server can display this run without starting a second server.
+
 ## Stop and resume later
 
-During learning or checkpoint evaluation, press **Ctrl+C once**. The process finishes the current worker step and saves `latest.json`. A cancelled evaluation cannot replace `best.json`.
+For a foreground run, press **Ctrl+C once** during learning or checkpoint evaluation. The process finishes the current worker step and saves `latest.json`. A cancelled evaluation cannot replace `best.json`. For a run started by Codex in the background, ask Codex to stop it; the recorded PID and creation time identify the correct trainer before sending the same interrupt signal.
 
 After a checkpoint exists, resume with:
 

@@ -15,7 +15,7 @@ The project used the installed [Elephant & Goldfish Model (EGM)](https://github.
 | Changing worker count lost a full replay buffer’s oldest-entry boundary | `dino_rl/parallel.py`, `tests/test_contract.py` | Copy wrapped replay chronologically; test flags, contents and the next eviction. |
 | Same-run resume could mix different evaluation time limits | `dino_rl/training.py`, `tests/test_contract.py` | Reject a changed cap before Chrome opens. A new run directory keeps a separate selection history. |
 | A failed worker could leave other games running | `dino_rl/parallel.py`, `tests/test_parallel.py` | Own bounded worker cleanup and child environment finalization; test step failure and partial startup. Preserve a startup exception if cleanup also fails. |
-| One-decision diagnostics had no timing intervals for a percentile | `scripts/evaluate_transfer.py`, `tests/test_transfer.py` | Write JSON `null` for unavailable percentiles; test one and several decisions. |
+| One-decision diagnostics had no timing intervals for a percentile | Former standalone transfer diagnostic and its test | Fixed missing interval percentiles in the initial release. The standalone tool was retired during later cleanup; current evaluation uses `dino evaluate`. |
 | CLI mixed orchestration with training, storage and checks | `dino_rl/__main__.py`, `training.py`, `evaluation.py`, `checkpoints.py`, `checks.py` | Separate existing responsibilities without changing the algorithm; retain contract/resume regressions. |
 | Release model has no full training state | `dino_rl/training.py`, `tests/test_contract.py`, `models/README.md` | Reject `--resume` on the inference release before launching Chrome; document `--initialize-from`. |
 | Scrolling over the control panel escaped manual takeover | `extension/controller.js`, `tests/test_extension_browser.py` | Only actual button activation is exempt; wheel input pauses even over the panel. |
@@ -38,7 +38,7 @@ The project used the installed [Elephant & Goldfish Model (EGM)](https://github.
 | Dependency audit | `uv run pip-audit`; third-party packages checked, local unpublished package skipped |
 | Packaging and publication | Frozen environment, build contents, staged files, private personal GitHub repository |
 
-The small model ZIP and its deterministic JSON export are intentional release files. Replay, optimizer-resume state, machine paths, training logs, browser profiles, audit logs and review transcripts stay outside Git. The previous project guide is preserved locally under ignored `runs/archive/project-guide/`.
+The small model ZIP and its deterministic JSON export are intentional release files. Replay, optimizer-resume state, machine paths, training logs, browser profiles, audit logs and review transcripts stay outside Git. The previous prototype guide was superseded by the current algorithm and training guides and removed during later cleanup.
 
 ## Visual documentation
 
@@ -68,6 +68,12 @@ The optional explorable architecture diagram was created with installed **Archif
 The two final fresh-context reviewers completed their source/document audits. Their material findings were the opening resume race, missing exact compatibility values, and cancellation behavior during evaluation. Each was fixed as described above. Test execution and packaging verification were performed separately by the main agent. No known unresolved Major or Blocker from these bounded reviews remains; this does not claim the full EGM convergence protocol.
 
 GitHub CI runs separately after publication; local success does not assert a remote CI result.
+
+## Later cleanup
+
+The standalone native-versus-controlled-clock comparison script and its dedicated test were removed after the main `dino evaluate` command became the evaluation entry point. The explicit controlled-clock CLI diagnostic remains available for historical checks. The active trainer, environment, hyperparameters and extension inference were unchanged.
+
+Stale local build archives, the superseded prototype PDF/HTML guide and Finder metadata were removed. Unique historical experiments, checkpoints, released model files, current diagrams and review evidence were retained.
 
 <details>
 <summary>Architecture diagram receipt</summary>

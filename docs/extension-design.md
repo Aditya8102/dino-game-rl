@@ -114,7 +114,7 @@ Office policies may prohibit installation or debugger access. Such an error is s
 | Unsupported dimensions stop control | Resize compatibility test |
 | Replay and machine paths stay out of the release | Packaging and staged-file inspection |
 
-Python training and checkpoint code were also reviewed for learning-state continuity, replay ordering, worker cleanup and comparable evaluations. Findings and resolutions are in [the review record](review.md). The original draft’s implementation steps are complete when those checks and publication are recorded there.
+Python training and checkpoint code were also reviewed for learning-state continuity, replay ordering, worker cleanup and comparable evaluations. Findings and resolutions are in [the review record](review.md).
 
 ## Sources
 
