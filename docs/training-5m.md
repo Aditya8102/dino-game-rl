@@ -100,6 +100,26 @@ uv run --frozen dino @configs/scratch-5m.args --resume runs/dqn-scratch-5m/lates
 
 This continues toward **five million total steps**, rather than adding five million more. Weights, replay, optimizer and saved Python/NumPy/Torch random states are restored. Native browser trajectories are not reproduced exactly.
 
+## After a Chrome patch update
+
+Normal resume rejects a different Chrome version. Run `uv run --frozen dino check` first and review the result. The environment checks game dimensions, runner settings and dinosaur physics; the movement check exercises the real controls, collisions and timing. A passing check supports an explicit patch-version transition, not a claim that all browser internals are identical.
+
+For the verified `.78` → `.79` update, full-state continuation uses:
+
+```bash
+uv run --frozen dino @configs/scratch-5m.args --run runs/dqn-scratch-5m-chrome79 --resume runs/dqn-scratch-5m/latest.json --accept-chrome-version 157.0.8103.79
+```
+
+The one-time flag accepts only the exact installed version within the same Chrome major/minor/build. Every other contract field must still match. A new run directory is required so evaluation selection starts separately; the old checkpoints and best model remain untouched. The new configuration records the browser change. Weights, optimizer, replay and random-generator state are retained, including replay collected under the verified previous patch.
+
+After this continuation has saved a checkpoint, resume it without the one-time flag:
+
+```bash
+uv run --frozen dino @configs/scratch-5m.args --run runs/dqn-scratch-5m-chrome79 --resume runs/dqn-scratch-5m-chrome79/latest.json
+```
+
+For runs launched by Codex, `runs/current-training.json` identifies the current run directory; its `process.json` identifies the trainer. TensorBoard shows the continuation as a separate run. Compare its evaluations with the original run while keeping the browser-version difference visible.
+
 Eight Chrome games are the same workload used previously; there is no hard CPU cap. Resource metrics are sampled estimates. Choose a time when the laptop can remain awake and ventilated. Sleep suspends local training; this setup does not change power settings or office policies.
 
 At the ideal eight-games × 20-decisions/second rate, collecting five million transitions alone takes about **8.7 hours**. The approximately 100 eight-game evaluation batches and normal overhead add time. A batch where all eight games reach their cap adds roughly five minutes of gameplay. Plan for a long session, not a guaranteed completion time.

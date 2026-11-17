@@ -9,7 +9,15 @@ import numpy as np
 from gymnasium import spaces
 from playwright.sync_api import sync_playwright
 
-from .config import ACTIONS, GAME_CONFIG, GAME_DIMENSIONS, OBSERVATION_SCALES, SCHEMA, STEP_MS
+from .config import (
+    ACTIONS,
+    GAME_CONFIG,
+    GAME_DIMENSIONS,
+    OBSERVATION_SCALES,
+    SCHEMA,
+    STEP_MS,
+    TREX_CONFIG,
+)
 from .resources import CpuBudget
 
 READ_STATE = """() => {
@@ -168,6 +176,13 @@ class DinoEnv(gym.Env):
             raise RuntimeError(f"Expected a 600 × 150 Dino game, got {r['width']} × {r['height']}.")
         if r["config"] != GAME_CONFIG:
             raise RuntimeError(f"Unsupported game configuration: {r['config']}")
+        trex_config = self.page.evaluate("""() => {
+          const config = Runner.getInstance().tRex.config;
+          return {width: config.width, widthDuck: config.widthDuck,
+            gravity: config.gravity, initialJumpVelocity: config.initialJumpVelocity};
+        }""")
+        if trex_config != TREX_CONFIG:
+            raise RuntimeError(f"Unsupported dinosaur configuration: {trex_config}")
         if not 0 <= r["runningMs"] < 10000:
             raise RuntimeError("Dino's setup clock is outside its expected range.")
         observation(r, 0)

@@ -94,6 +94,8 @@ The uv configuration selects CPU-only PyTorch wheels on Linux, avoiding unused C
 
 The check opens an isolated Chrome profile, verifies native movement and game settings, and writes `runs/check.json`. It does not use your personal Chrome profile. Python evaluation requires the Chrome version recorded in the checkpoint contract; a mismatch is reported instead of silently changing the conditions.
 
+A reviewed Chrome patch update can be accepted for full-state training continuation into a new run directory. See the [browser update procedure](docs/training-5m.md#after-a-chrome-patch-update); normal resume remains strict.
+
 ## Train a model
 
 For the fresh **five-million-step** experiment, follow the [start / stop / resume guide](docs/training-5m.md). Its settings are saved in [`configs/scratch-5m.args`](configs/scratch-5m.args).

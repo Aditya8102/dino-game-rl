@@ -77,6 +77,11 @@ def main() -> None:
                 "--initialize-from",
                 help="Initialize policy weights from another run; replay and optimizer start fresh.",
             )
+            sub.add_argument(
+                "--accept-chrome-version",
+                metavar="VERSION",
+                help="Accept this exact Chrome patch version for full-state resume into a new --run.",
+            )
             sub.add_argument("--checkpoint-every", type=positive_int, default=25000)
             sub.add_argument("--eval-episodes", type=positive_int, default=8)
             sub.add_argument(

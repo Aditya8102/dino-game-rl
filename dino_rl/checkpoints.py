@@ -59,9 +59,18 @@ def resolve_checkpoint(pointer: str | Path) -> tuple[Path, dict]:
     return checkpoint, json.loads((checkpoint / "metadata.json").read_text())
 
 
-def validate_contract(saved: dict, env: DinoEnv | VecEnv) -> None:
-    """Reject models whose saved game/input contract differs from the environment."""
+def validate_contract(
+    saved: dict, env: DinoEnv | VecEnv, *, accept_chrome_version: str | None = None
+) -> None:
+    """Require the same contract, with an explicit exact-version patch exception."""
     expected = contract(env)
+    if accept_chrome_version is not None:
+        if (
+            accept_chrome_version != expected["chrome_version"]
+            or saved["chrome_version"].rsplit(".", 1)[0] != accept_chrome_version.rsplit(".", 1)[0]
+        ):
+            raise ValueError("Only the exact installed Chrome patch version can be accepted.")
+        saved = {**saved, "chrome_version": accept_chrome_version}
     if saved != expected:
         raise ValueError(f"Checkpoint/game contract differs. Saved: {saved}; current: {expected}")
 

@@ -74,6 +74,74 @@ class FixedEpisode(gym.Env):
 
 
 class ContractTests(unittest.TestCase):
+    def test_chrome_patch_acceptance_preserves_every_other_contract_field(self):
+        saved = contract(SimpleNamespace(browser_version="157.0.8103.78"))
+        current = SimpleNamespace(browser_version="157.0.8103.79")
+        with self.assertRaisesRegex(ValueError, "contract differs"):
+            validate_contract(saved, current)
+        validate_contract(saved, current, accept_chrome_version="157.0.8103.79")
+        self.assertEqual(saved["chrome_version"], "157.0.8103.78")
+        with self.assertRaisesRegex(ValueError, "exact installed Chrome patch"):
+            validate_contract(saved, current, accept_chrome_version="157.0.8103.80")
+        with self.assertRaisesRegex(ValueError, "exact installed Chrome patch"):
+            validate_contract(
+                saved,
+                SimpleNamespace(browser_version="158.0.8200.1"),
+                accept_chrome_version="158.0.8200.1",
+            )
+        for key, value in (
+            ("schema", "other"),
+            ("step_ms", 100),
+            ("actions", [None]),
+            ("collision_penalty", -1),
+        ):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "contract differs"):
+                validate_contract(
+                    {**saved, key: value}, current, accept_chrome_version="157.0.8103.79"
+                )
+
+    def test_chrome_patch_acceptance_requires_a_separate_resume_run(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "checkpoint").mkdir()
+            (root / "checkpoint/metadata.json").write_text(
+                json.dumps(
+                    {
+                        "config": {
+                            "clock_mode": "native",
+                            "browser_mode": "headless",
+                            "max_seconds": 300,
+                        }
+                    }
+                )
+            )
+            pointer = root / "latest.json"
+            pointer.write_text(json.dumps({"checkpoint": "checkpoint"}))
+            for resume in (None, str(pointer)):
+                args = SimpleNamespace(
+                    workers=8,
+                    run=str(root),
+                    resume=resume,
+                    show_browser=False,
+                    max_seconds=300,
+                    accept_chrome_version="157.0.8103.79",
+                )
+                with patch("dino_rl.training.training_env") as create:
+                    with self.assertRaisesRegex(ValueError, "new --run directory"):
+                        train(args)
+                    create.assert_not_called()
+
+    def test_changed_dinosaur_physics_are_rejected(self):
+        from dino_rl.config import GAME_CONFIG, TREX_CONFIG
+
+        environment = DinoEnv.__new__(DinoEnv)
+        environment.raw = {**game_state(), "config": GAME_CONFIG, "runningMs": 0}
+        environment.page = SimpleNamespace(evaluate=lambda script: TREX_CONFIG)
+        environment._validate_game()
+        environment.page.evaluate = lambda script: {**TREX_CONFIG, "gravity": 0.7}
+        with self.assertRaisesRegex(RuntimeError, "Unsupported dinosaur configuration"):
+            environment._validate_game()
+
     def test_fresh_training_starts_with_empty_learning_state_and_full_exploration(self):
         torch.set_num_threads(1)
         with TemporaryDirectory() as directory:
@@ -355,6 +423,7 @@ class ContractTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             run = Path(directory)
             source_env = DummyVecEnv([lambda: FixedEpisode(4)])
+            source_env.envs[0].browser_version = "157.0.8103.78"
             source = DQN(
                 "MlpPolicy",
                 source_env,
@@ -406,6 +475,7 @@ class ContractTests(unittest.TestCase):
                 return actual_learn(resumed, **kwargs)
 
             resumed_env = DummyVecEnv([lambda: FixedEpisode(4)])
+            resumed_env.envs[0].browser_version = "157.0.8103.78"
             with (
                 patch("dino_rl.training.training_env", return_value=resumed_env),
                 patch("dino_rl.training.CpuBudget", return_value=budget),
@@ -427,6 +497,8 @@ class ContractTests(unittest.TestCase):
             args.max_seconds = 120
             args.steps = 16
             continued_env = DummyVecEnv([lambda: FixedEpisode(2)])
+            continued_env.envs[0].browser_version = "157.0.8103.79"
+            args.accept_chrome_version = "157.0.8103.79"
             with (
                 patch("dino_rl.training.training_env", return_value=continued_env),
                 patch("dino_rl.training.CpuBudget", return_value=budget),
@@ -439,6 +511,15 @@ class ContractTests(unittest.TestCase):
             )
             self.assertEqual(selected_metadata["best_quality"], [2, 2])
             self.assertEqual(selected_metadata["config"]["max_seconds"], 120)
+            self.assertEqual(selected_metadata["contract"]["chrome_version"], "157.0.8103.79")
+            self.assertEqual(
+                selected_metadata["config"]["chrome_version_change"],
+                {"from": "157.0.8103.78", "to": "157.0.8103.79", "at_steps": 12},
+            )
+            self.assertEqual(
+                json.loads((run / "config.json").read_text())["contract"]["chrome_version"],
+                "157.0.8103.78",
+            )
             self.assertTrue((continued_run / "baselines.json").exists())
             self.assertEqual(json.loads((run / "config.json").read_text())["max_seconds"], 300)
             source_env.close()

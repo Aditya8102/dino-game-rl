@@ -107,6 +107,7 @@ def train(args: Namespace) -> None:
     if not args.resume and (run / "config.json").exists():
         raise ValueError("This run already exists. Use --resume or choose a new --run directory.")
     continuation = False
+    accepted_chrome_version = getattr(args, "accept_chrome_version", None)
     if args.resume:
         checkpoint, metadata = resolve_checkpoint(args.resume)
         continuation = Path(args.resume).resolve().parent != run
@@ -133,6 +134,8 @@ def train(args: Namespace) -> None:
                 "The run's episode time limit differs. "
                 "Use --resume with a new --run to keep evaluations comparable."
             )
+    if accepted_chrome_version and (not args.resume or not continuation):
+        raise ValueError("--accept-chrome-version requires --resume and a new --run directory.")
     env = training_env(args.workers, args.max_seconds, args.show_browser)
     budget = CpuBudget()
     try:
@@ -146,8 +149,16 @@ def train(args: Namespace) -> None:
         }
         best_quality = (-1.0, -1.0)
         if args.resume:
-            validate_contract(metadata["contract"], env)
+            validate_contract(
+                metadata["contract"], env, accept_chrome_version=accepted_chrome_version
+            )
             config = metadata["config"]
+            if accepted_chrome_version:
+                config["chrome_version_change"] = {
+                    "from": metadata["contract"]["chrome_version"],
+                    "to": accepted_chrome_version,
+                    "at_steps": metadata["steps"],
+                }
             model = DQN.load(
                 checkpoint / "model.zip",
                 env=env,
