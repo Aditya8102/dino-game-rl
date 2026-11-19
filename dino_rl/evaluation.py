@@ -13,7 +13,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 
 from .checkpoints import contract, resolve_checkpoint, validate_contract, write_json
 from .env import DinoEnv, empty_bird_metrics
-from .resources import CpuBudget
+from .resources import ResourceMonitor
 
 
 def bird_scalars(metrics: dict[str, dict[str, int]]) -> dict[str, float]:
@@ -32,7 +32,7 @@ def rollout(
     policy: DQN | str,
     episodes: int,
     seed: int = 100,
-    budget: CpuBudget | None = None,
+    monitor: ResourceMonitor | None = None,
     stop_requested: Callable[[], bool] | None = None,
 ) -> dict | None:
     """Evaluate fair worker quotas, or return None when a stop cancels the batch."""
@@ -59,9 +59,9 @@ def rollout(
         obs, rewards, dones, infos = vector.step(actions)
         totals += rewards
         lengths += 1
-        if budget:
+        if monitor:
             # These are native-clock games: telemetry must never delay the actor.
-            budget.tick(throttle=False)
+            monitor.tick()
         for index, done in enumerate(dones):
             if done:
                 if counts[index] < targets[index]:
@@ -106,25 +106,22 @@ def evaluate(args: Namespace) -> None:
     checkpoint, metadata = resolve_checkpoint(args.checkpoint)
     env = DinoEnv(
         show_browser=args.command == "play" or args.show_browser,
-        realtime=args.command == "play" or not args.controlled_clock,
-        cpu_cores=args.cpu_cores if args.command == "evaluate" else None,
         max_seconds=args.max_seconds,
     )
     try:
+        monitor = ResourceMonitor()
         validate_contract(metadata["contract"], env)
         model = DQN.load(checkpoint / "model.zip", device="cpu")
         report = {
             "checkpoint": str(checkpoint),
-            "realtime": env.realtime,
-            "clock_mode": "native" if env.realtime else "controlled",
+            "clock_mode": "native",
             "browser_mode": "visible" if env.render_mode == "human" else "headless",
             "max_seconds": args.max_seconds,
             "training_steps": metadata["steps"],
             "contract": contract(env),
             **rollout(env, model, args.episodes),
         }
-        if env.budget:
-            report["resources"] = env.budget.summary()
+        report["resources"] = monitor.summary()
         run = Path(args.run).resolve()
         output = (
             args.output
@@ -135,9 +132,7 @@ def evaluate(args: Namespace) -> None:
             from torch.utils.tensorboard import SummaryWriter
 
             with SummaryWriter(str(run / "tensorboard" / "dino_0")) as writer:
-                prefix = (
-                    f"test/{report['browser_mode']}" if env.realtime else "diagnostics/controlled"
-                )
+                prefix = f"test/{report['browser_mode']}"
                 for key in (
                     "mean_reward",
                     "mean_ep_length",

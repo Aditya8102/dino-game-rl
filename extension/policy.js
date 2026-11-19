@@ -43,6 +43,7 @@ export function predictQ(model, observation) {
 export function validateModel(model) {
   if (!model || model.format_version !== 1 || model.algorithm !== "DQN" ||
       model.schema !== "dino-state-28-v1" || model.step_ms !== 50 || model.input_size !== 28 ||
+      !Number.isSafeInteger(model.checkpoint_step) || model.checkpoint_step < 1 ||
       JSON.stringify(model.actions) !== '["release","jump","duck"]' ||
       !Array.isArray(model.layers) || model.layers.length !== 3 ||
       !model.game || !model.normalization ||

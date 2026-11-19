@@ -30,7 +30,7 @@ from .config import DQN_DEFAULTS, NETWORK_SHAPE
 from .env import empty_bird_metrics
 from .evaluation import bird_scalars, rollout
 from .parallel import repartition_replay, training_env
-from .resources import CpuBudget
+from .resources import ResourceMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,9 @@ logger = logging.getLogger(__name__)
 class Progress(BaseCallback):
     """Collect training metrics and honor a checkpointed stop request."""
 
-    def __init__(self, budget: CpuBudget, run: Path) -> None:
+    def __init__(self, monitor: ResourceMonitor, run: Path) -> None:
         super().__init__()
-        self.budget = budget
+        self.monitor = monitor
         self.run = run
         self.stop_requested = False
         self.last_print = 0
@@ -52,7 +52,7 @@ class Progress(BaseCallback):
         self.start_steps = self.last_print = self.model.num_timesteps
 
     def _on_step(self) -> bool:
-        self.budget.tick(throttle=False)
+        self.monitor.tick()
         for info in self.locals["infos"]:
             if "episode" in info:
                 append_json(
@@ -72,7 +72,7 @@ class Progress(BaseCallback):
                 self.logger.record("rollout/survival_mean_20", statistics.mean(self.survival))
         if self.num_timesteps - self.last_print >= 1000:
             self.last_print = self.num_timesteps
-            resources = self.budget.summary()
+            resources = self.monitor.summary()
             speed = (self.num_timesteps - self.start_steps) / max(
                 time.monotonic() - self.started, 1e-6
             )
@@ -94,7 +94,17 @@ class Progress(BaseCallback):
                     }
                 )
             )
-        return not self.stop_requested
+        return True
+
+
+class TrainingDQN(DQN):
+    """Vanilla DQN with a stop boundary after collection has committed its state."""
+
+    def collect_rollouts(self, *args, callback: Progress, **kwargs):
+        rollout = super().collect_rollouts(*args, callback=callback, **kwargs)
+        if callback.stop_requested:
+            return rollout._replace(continue_training=False)
+        return rollout
 
 
 def train(args: Namespace) -> None:
@@ -137,8 +147,8 @@ def train(args: Namespace) -> None:
     if accepted_chrome_version and (not args.resume or not continuation):
         raise ValueError("--accept-chrome-version requires --resume and a new --run directory.")
     env = training_env(args.workers, args.max_seconds, args.show_browser)
-    budget = CpuBudget()
     try:
+        monitor = ResourceMonitor()
         config = {
             **DQN_DEFAULTS,
             "seed": args.seed,
@@ -159,28 +169,35 @@ def train(args: Namespace) -> None:
                     "to": accepted_chrome_version,
                     "at_steps": metadata["steps"],
                 }
-            model = DQN.load(
+            model = TrainingDQN.load(
                 checkpoint / "model.zip",
                 env=env,
                 device="cpu",
                 tensorboard_log=str(run / "tensorboard"),
             )
             model.load_replay_buffer(checkpoint / "replay.pkl")
+            model._n_calls = model._n_calls * model.replay_buffer.n_envs // args.workers
             model.replay_buffer, migration = repartition_replay(model.replay_buffer, args.workers)
             migration.update(checkpoint=str(checkpoint), at_steps=model.num_timesteps)
             write_json(run / "replay-migration.json", migration)
             append_json(run / "replay-migrations.jsonl", migration)
             model.gradient_steps = args.workers
-            model._n_calls = model.num_timesteps // args.workers
             with (checkpoint / "rng.pkl").open("rb") as handle:
                 rng = pickle.load(handle)
             random.setstate(rng["python"])
             np.random.set_state(rng["numpy"])
             torch.set_rng_state(rng["torch"])
+            if "action_space" in rng:
+                model.action_space.np_random.bit_generator.state = rng["action_space"]
+            else:
+                logger.warning(
+                    "Historical checkpoint has no action-space RNG state; "
+                    "its exploration action sequence cannot be restored exactly."
+                )
             if continuation:
                 config["resume_checkpoint"] = str(checkpoint)
                 baselines = {
-                    name: rollout(env, name, args.eval_episodes, args.seed + 100, budget)
+                    name: rollout(env, name, args.eval_episodes, args.seed + 100, monitor)
                     for name in ("no-input", "random")
                 }
                 write_json(run / "baselines.json", baselines)
@@ -188,11 +205,11 @@ def train(args: Namespace) -> None:
                 best_quality = tuple(metadata["best_quality"])
         else:
             baselines = {
-                name: rollout(env, name, args.eval_episodes, args.seed + 100, budget)
+                name: rollout(env, name, args.eval_episodes, args.seed + 100, monitor)
                 for name in ("no-input", "random")
             }
             write_json(run / "baselines.json", baselines)
-            model = DQN(
+            model = TrainingDQN(
                 "MlpPolicy",
                 env,
                 policy_kwargs={"net_arch": config["network"]},
@@ -253,8 +270,8 @@ def train(args: Namespace) -> None:
             },
         )
         if continuation:
-            save_checkpoint(model, env, run, config, None, best_quality, budget)
-        callback = Progress(budget, run)
+            save_checkpoint(model, env, run, config, None, best_quality, monitor)
+        callback = Progress(monitor, run)
         previous_handler = signal.getsignal(signal.SIGINT)
         signal.signal(signal.SIGINT, lambda *_: setattr(callback, "stop_requested", True))
         try:
@@ -283,7 +300,7 @@ def train(args: Namespace) -> None:
                         env,
                         model,
                         args.eval_episodes,
-                        budget=budget,
+                        monitor=monitor,
                         stop_requested=lambda: callback.stop_requested,
                     )
                 if evaluation is not None:
@@ -307,7 +324,7 @@ def train(args: Namespace) -> None:
                         {"steps": model.num_timesteps, "clock_mode": "native", **evaluation},
                     )
                 best_quality = save_checkpoint(
-                    model, env, run, config, evaluation, best_quality, budget
+                    model, env, run, config, evaluation, best_quality, monitor
                 )
                 if evaluation is not None:
                     logger.info(
@@ -326,7 +343,7 @@ def train(args: Namespace) -> None:
                 "best_median_survival_seconds": best_quality[0],
                 "best_mean_survival_seconds": best_quality[1],
                 "interrupted": callback.stop_requested,
-                "resources": budget.summary(),
+                "resources": monitor.summary(),
             },
         )
     finally:

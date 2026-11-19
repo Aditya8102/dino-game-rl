@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {readFileSync} from "node:fs";
 import test from "node:test";
 import {observe, predictQ, validateModel} from "../extension/policy.js";
@@ -13,7 +14,13 @@ function gameState() {
 
 test("bundled model has the supported trained DQN contract", () => {
   validateModel(model);
-  assert.equal(model.checkpoint_step, 1500576);
+  const pointer = JSON.parse(readFileSync(new URL("../models/best.json", import.meta.url)));
+  const metadata = JSON.parse(readFileSync(new URL(`../models/${pointer.checkpoint}/metadata.json`, import.meta.url)));
+  const zip = readFileSync(new URL(`../models/${pointer.checkpoint}/model.zip`, import.meta.url));
+  assert.equal(model.checkpoint_step, pointer.steps);
+  assert.equal(metadata.steps, pointer.steps);
+  assert.equal(model.source_sha256, createHash("sha256").update(zip).digest("hex"));
+  assert.equal(metadata.sha256, model.source_sha256);
 });
 
 test("observation excludes passed and offscreen obstacles and preserves bird features", () => {

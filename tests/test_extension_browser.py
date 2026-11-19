@@ -2,6 +2,7 @@
 
 import os
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -57,7 +58,48 @@ class ExtensionBrowserTests(unittest.TestCase):
         game.bring_to_front()
         game.wait_for_function("() => Boolean(globalThis.__dinoRl)")
         self.assertEqual(game.url, "chrome-error://chromewebdata/")
+        self.assertFalse(game.evaluate("__dinoRl.status().enabled"))
+        self.assertEqual(game.evaluate("__dinoRl.status().predictions"), 0)
         return game
+
+    def delay_installation(self, *, before):
+        worker = self.context.service_workers[0]
+        worker.evaluate(
+            """before => {
+          const original = chrome.debugger.sendCommand;
+          chrome.debugger.sendCommand = async (...args) => {
+            const installation = args[1] === 'Runtime.evaluate' &&
+              args[2].expression.includes('function installController(');
+            if (installation && before) {
+              await new Promise(resolve => { globalThis.releaseInstallation = resolve; });
+            }
+            const result = await original(...args);
+            if (installation && !before) {
+              await new Promise(resolve => { globalThis.releaseInstallation = resolve; });
+            }
+            return result;
+          };
+        }""",
+            before,
+        )
+        return worker
+
+    def begin_opening(self):
+        with self.context.expect_page() as created:
+            self.popup.evaluate(
+                "() => { window.openResult = chrome.runtime.sendMessage({action:'open'}); }"
+            )
+        game = created.value
+        game.bring_to_front()
+        return game
+
+    def wait_for_installation(self, worker):
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if worker.evaluate("() => typeof globalThis.releaseInstallation === 'function'"):
+                return
+            time.sleep(0.05)
+        self.fail("The extension did not reach the delayed installation.")
 
     def resume(self, game):
         game.bring_to_front()
@@ -95,6 +137,10 @@ class ExtensionBrowserTests(unittest.TestCase):
         self.resume(game)
         game.mouse.wheel(0, 20)
         self.assert_paused(game)
+        self.resume(game)
+        game.locator("#dino-rl-controls").get_by_role("button").click(button="right")
+        self.assert_paused(game)
+        game.keyboard.press("Escape")
         self.resume(game)
         other = self.context.new_page()
         other.bring_to_front()
@@ -151,30 +197,52 @@ class ExtensionBrowserTests(unittest.TestCase):
         self.assert_paused(game)
 
     def test_manual_input_during_opening_cannot_be_undone_by_a_late_resume(self):
-        worker = self.context.service_workers[0]
-        worker.evaluate("""() => {
-          const original = chrome.debugger.sendCommand;
-          chrome.debugger.sendCommand = async (...args) => {
-            const result = await original(...args);
-            if (args[1] === 'Runtime.evaluate' &&
-                args[2].expression.includes('function installController(')) {
-              await new Promise(resolve => { globalThis.releaseInstallation = resolve; });
-            }
-            return result;
-          };
-        }""")
-        with self.context.expect_page() as created:
-            self.popup.evaluate(
-                "() => { window.openResult = chrome.runtime.sendMessage({action:'open'}); }"
-            )
-        game = created.value
-        game.bring_to_front()
+        worker = self.delay_installation(before=False)
+        game = self.begin_opening()
         game.wait_for_function("() => Boolean(globalThis.__dinoRl)")
         game.keyboard.press("ArrowDown")
         self.assertFalse(game.evaluate("__dinoRl.status().enabled"))
         worker.evaluate("() => globalThis.releaseInstallation()")
         self.popup.wait_for_function("async () => (await window.openResult).ok")
         self.assert_paused(game)
+
+    def test_input_before_controller_installation_requires_explicit_start(self):
+        worker = self.delay_installation(before=True)
+        game = self.begin_opening()
+        self.wait_for_installation(worker)
+        game.keyboard.press("ArrowUp")
+        worker.evaluate("() => globalThis.releaseInstallation()")
+        self.popup.wait_for_function("async () => (await window.openResult).ok")
+        self.assert_paused(game)
+        self.assertEqual(game.evaluate("__dinoRl.status().predictions"), 0)
+
+    def test_navigation_during_installation_cancels_the_opening_session(self):
+        worker = self.delay_installation(before=True)
+        game = self.begin_opening()
+        self.wait_for_installation(worker)
+        cdp = self.context.new_cdp_session(game)
+        cdp.send("Page.navigate", {"url": "https://dino.invalid/"})
+        self.popup.wait_for_function(
+            "async () => (await chrome.runtime.sendMessage({action:'status'})).status.gameTabId === null"
+        )
+        worker.evaluate("() => globalThis.releaseInstallation()")
+        self.assertFalse(self.popup.evaluate("async () => (await window.openResult).ok"))
+        self.assertEqual(self.command("status")["phase"], "disconnected")
+        self.assertFalse(game.evaluate("Boolean(globalThis.__dinoRl)"))
+
+    def test_navigation_after_installation_cannot_publish_a_stale_ready_session(self):
+        worker = self.delay_installation(before=False)
+        game = self.begin_opening()
+        game.wait_for_function("() => Boolean(globalThis.__dinoRl)")
+        self.wait_for_installation(worker)
+        cdp = self.context.new_cdp_session(game)
+        cdp.send("Page.navigate", {"url": "https://dino.invalid/"})
+        self.popup.wait_for_function(
+            "async () => (await chrome.runtime.sendMessage({action:'status'})).status.gameTabId === null"
+        )
+        worker.evaluate("() => globalThis.releaseInstallation()")
+        self.assertFalse(self.popup.evaluate("async () => (await window.openResult).ok"))
+        self.assertEqual(self.command("status")["phase"], "disconnected")
 
     def test_expired_heartbeat_closes_session_without_reenabling_control(self):
         worker = self.context.service_workers[0]
@@ -191,6 +259,9 @@ class ExtensionBrowserTests(unittest.TestCase):
         game = self.open_game()
         game.wait_for_function("() => __dinoRl.status().phase === 'disconnected'", timeout=3000)
         self.assertFalse(game.evaluate("__dinoRl.status().enabled"))
+        game.keyboard.press("ArrowDown")
+        self.assertEqual(game.evaluate("__dinoRl.status().phase"), "disconnected")
+        self.assertEqual(game.evaluate("__dinoRl.pulse().phase"), "disconnected")
         worker.evaluate("() => globalThis.releaseHeartbeat()")
         game.wait_for_function("() => !globalThis.__dinoRl")
         self.assertEqual(self.command("status")["phase"], "disconnected")

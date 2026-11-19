@@ -3,6 +3,5 @@
 *.js text eol=lf
 *.mjs text eol=lf
 extension/model.json linguist-generated=true
-docs/architecture.html linguist-generated=true
-docs/assets/visible-evaluation.svg linguist-generated=true
+docs/assets/model-comparison.svg linguist-generated=true
 models/dqn/model.zip binary

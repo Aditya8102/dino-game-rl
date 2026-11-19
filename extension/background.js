@@ -94,12 +94,20 @@ async function createGame() {
     });
     await chrome.debugger.sendCommand({tabId: tab.id}, "Page.navigate", {url: GAME_URL});
     const deadline = Date.now() + GAME_LOAD_TIMEOUT_MS;
-    while (!await evaluate(tab.id, "typeof Runner !== 'undefined' && Boolean(Runner.getInstance().tRex)")) {
+    let documentTimeOrigin = 0;
+    while (!documentTimeOrigin) {
+      if (session !== current) throw new Error("Game opening was cancelled.");
+      documentTimeOrigin = await evaluate(tab.id,
+        "typeof Runner !== 'undefined' && Runner.getInstance().tRex && document.readyState === 'complete' ? performance.timeOrigin : 0");
+      if (documentTimeOrigin) break;
       if (Date.now() > deadline) throw new Error("Chrome did not load its native offline Dino game.");
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const injection = `(${installController.toString()})(${JSON.stringify(model)},${observe.toString()},${predictQ.toString()})`;
+    current.documentReady = true;
+    if (session !== current) throw new Error("Game opening was cancelled.");
+    const injection = `(${installController.toString()})(${JSON.stringify(model)},${observe.toString()},${predictQ.toString()},${documentTimeOrigin})`;
     const status = await evaluate(tab.id, injection);
+    if (session !== current) throw new Error("Game opening was cancelled.");
     current.ready = true;
     current.heartbeat = setInterval(() => heartbeat(current), HEARTBEAT_MS);
     await updateStatus(status);
@@ -157,7 +165,7 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, change) => {
-  if (tabId === session?.tabId && session.ready && change.status === "loading") {
+  if (tabId === session?.tabId && session.documentReady && change.status === "loading") {
     disconnect("The game tab navigated away. Open Dino to start a new session.");
   }
 });

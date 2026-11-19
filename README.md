@@ -1,232 +1,117 @@
 # Dino RL
 
-A small reinforcement learning project that learns to play **Chrome’s own Dinosaur game**. Python trains a DQN model from its own attempts. A Chrome extension runs the saved model locally and lets you take control at any time.
+Train a small reinforcement learning model to play **Chrome’s own Dinosaur game**, then run it locally with a Chrome extension. The model learns from its own attempts; you do not need to record yourself playing.
 
-**Try the trained model:** load the [`extension/`](extension/) folder in Chrome. You do not need Python to use it.
+**Try it:** load the [`extension/`](extension/) folder in Chrome. Python is needed only for training and evaluation.
 
 ```mermaid
 flowchart LR
-    G["Real Chrome Dino"] -->|"State and reward"| T["Train with DQN"]
-    T --> M["Save and evaluate model"]
-    M --> E["Export weights"]
-    E --> P["Extension plays locally"]
+    G[Real Chrome Dino] -->|State and reward| T[Train DQN]
+    T --> M[Compare saved models]
+    M --> E[Export selected weights]
+    E --> P[Extension plays locally]
 ```
 
-[Install the extension](#play-with-the-chrome-extension) · [Train a model](#train-a-model) · [Read the graphs](#read-the-training-graphs) · [How DQN works](docs/how-it-works.md) · [Model results](models/README.md)
+## Play with the extension
 
-For an explorable diagram, download/open [`docs/architecture.html`](docs/architecture.html) in a browser. Its editable source is [`docs/architecture.json`](docs/architecture.json).
+Tested on **Chrome 157.0.8103.79, macOS**. The extension requires Chrome 157 or later; later versions are not verified.
 
-## Play with the Chrome extension
+1. Download or clone this repository and keep the folder on your computer.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked** and select this repository’s **`extension`** folder.
+4. Open **Dino RL** from the Chrome toolbar and click **Open Dino**.
+5. Keep the game tab in front and click **Start AI** in its control panel.
 
-Tested on desktop Google Chrome **157.0.8103.78**, on macOS. The extension requires Chrome 157 or later. Later versions may change the game’s internal interface; the extension checks the game settings and stops when they differ from the model’s contract.
+**Updating an existing installation:** first update your local files with `git pull`, or download the new repository files into the folder you originally loaded. Close the old game tab, click Reload on Dino RL in `chrome://extensions`, then open a new game. The panel should show **step 1,250,400**; the extension version is **0.2.0**.
 
-1. Download this repository or clone it. Keep the folder on your computer.
-2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Choose **Load unpacked** and select this repository’s **`extension`** folder.
-4. Open the **Dino RL** extension and click **Open Dino & play**.
-5. Keep the new game tab in front. Use its **Pause / Resume** button to control the agent.
-
-Chrome blocks extensions from controlling `chrome://dino` directly. This extension opens a dedicated tab and puts **only that tab** offline. Chrome then displays its original offline Dinosaur game. Your other tabs remain online. The address `https://dino.invalid/` is a reserved placeholder, not a game website.
-
-| What you do | What happens |
+| Control | Result |
 |---|---|
-| Open Dino & play | Opens the native game and starts the saved model |
-| Press a key, click outside the control button, or scroll in the game page | AI pauses; your input can reach the game |
-| Switch tabs or leave the window | AI pauses |
-| Click Resume | AI takes control again |
-| Crash | AI stops; **Restart with AI** starts another attempt |
-| Return to Dino in the popup | Focuses the existing game; does not resume it |
-| Disconnect or cancel Chrome’s debugging banner | AI stops; the game remains available for manual play |
+| Start AI | Let the saved model play |
+| A key, click outside the button, or scroll in the page | Pause AI; your input can reach the game |
+| Switch tabs or leave the window | Pause AI |
+| Resume / Restart with AI | Explicitly give control back |
+| Return to Dino | Focus the existing game; stay paused |
+| Disconnect / cancel Chrome’s debugging banner | Stop automated input |
 
-The extension requests Chrome’s **debugger** permission. Chrome describes this permission broadly and shows an active debugging banner. The code attaches only to its own newly created game tab. It uses no server, account, analytics, remote scripts, or cloud inference. If your office browser blocks unpacked extensions or debugger access, use a permitted browser; do not change company policies.
+**Why `dino.invalid`?** Chrome blocks extension control of `chrome://dino`. The extension puts only its own new tab offline and navigates to this reserved placeholder address. Chrome supplies the real offline game; it is not an external game website. Other tabs remain online.
 
-## What the model knows
+The extension needs **debugger** permission, so Chrome shows a permission warning and debugging banner. The code attaches only to the game tab it creates. Model inference is local: no server, account or analytics. Office policies may prohibit this access; the extension does not bypass them.
 
-The model reads numbers from the live game, rather than recognizing screenshots. It receives only the nearest two **visible, unpassed** obstacles; it does not read future obstacles.
+## The model and its results
 
-| Input group | Numbers | Examples |
-|---|---:|---|
-| Game and dinosaur | 7 | Speed, jump height, vertical speed, jump/duck/drop flags |
-| Previous action | 3 | Which of the three actions was last selected |
-| Nearest obstacle | 9 | Gap, height, width, type and approach speed |
-| Second obstacle | 9 | The same information for the next visible obstacle |
-| **Total** | **28** | Values are scaled before entering the network |
+```mermaid
+flowchart LR
+    I[28 game-state numbers] --> H[64 → 64 ReLU units]
+    H --> Q[3 action values]
+    Q --> A[Release / hold Up / hold Down]
+```
 
-| Model output | Game action |
-|---|---|
-| 0 | Release the agent’s keys; keep running automatically |
-| 1 | Hold Up to jump |
-| 2 | Hold Down to duck on the ground or drop faster in the air |
+The model sees speed, dinosaur movement, its previous action and the nearest two visible obstacles. Running is automatic. Holding and releasing Up lets it learn jump duration. It chooses an action about every **50 ms**. There are no hand-written obstacle avoidance rules.
 
-Decisions happen about every **50 milliseconds**: roughly 20 per second. Selecting jump again keeps Up held. Selecting another action releases it. This lets the model learn short and long jumps through ordinary key timing.
+The bundled **1,250,400-step** policy came from a run that started with random weights. It led a new comparison of three saved policies on the same Chrome version:
 
-There are no hand-written rules such as “jump when the cactus is 100 pixels away.” The saved network chooses the action.
+| Candidate | Games | Median survival | Mean score |
+|---|---:|---:|---:|
+| **Selected: 1,250,400 steps** | 8 | **135.1 s** | **2,069.9** |
+| Previous release: 1,500,576 steps | 8 | 108.3 s | 1,450.6 |
+| Continuation: 2,297,656 steps | 8 | 108.2 s | 1,606.3 |
 
-## Current results
+![Median survival in the three-policy comparison](docs/assets/model-comparison.svg)
 
-The latest training run finished **2,000,000 steps**. Its best selected checkpoint was at **1,500,576 steps**, which is the model included here. Training began with weights from an earlier run; it was not a fresh random initialization. See the [model card](models/README.md) for provenance and limits.
+These are small, background, native-speed **selection** samples with different random obstacles and a 300-second cap. None reached the cap. The model still crashes, including on birds. More training did not consistently help; the five-million-step study stopped at **4,198,264 saved steps** after native rendering stalled. It did not finish its target. In three separate extension games, **two reached the five-minute test cap**; scores were **5,564, 5,564 and 5,293**. See the [model card](models/README.md) for conditions and limitations.
 
-| Test | Completed games | Median survival | Mean score | Reached the 300-second cap |
-|---|---:|---:|---:|---:|
-| Background evaluation used to select the checkpoint | 8 | 247.3 s | 3,470.3 | 0/8 |
-| Separate visible Chrome check | 3 of 10 planned | 224.8 s | 3,551.3 | 1/3 |
+## Train or evaluate
 
-![Survival times in the three completed visible tests; game one reached the five-minute test cap.](docs/assets/visible-evaluation.svg)
-
-The visible check was stopped by the user. Its three completed games are reported; an interrupted game is excluded. One game stayed alive until the five-minute **test limit**. The other two hit cacti while descending. This is evidence of useful play, not perfect play or an unlimited high score. These scores came from Python-controlled native Chrome tests; the extension’s behavior and model parity are tested separately, and a long extension score benchmark remains to be done.
-
-## Set up Python
-
-Needed only for training, evaluating, or exporting another model:
-
-- Python **3.12** and [uv](https://docs.astral.sh/uv/getting-started/installation/).
-- Desktop [Google Chrome](https://www.google.com/chrome/) installed. Python uses the installed `chrome` channel, not a downloaded game clone.
-- Node.js **24 or later** for the JavaScript tests and Python/JavaScript parity test.
-
-From the repository root:
+Install **Python 3.12**, [uv](https://docs.astral.sh/uv/getting-started/installation/) and desktop Google Chrome. Use **Node.js 24+** for the policy tests. From the repository root:
 
 ```bash
 uv sync --frozen
-uv run dino check
+uv run --frozen dino check
+uv run --frozen dino train --run runs/my-first-run --workers 1 --steps 20000
 ```
 
-The uv configuration selects CPU-only PyTorch wheels on Linux, avoiding unused CUDA packages. macOS uses its normal PyTorch build. See [uv’s PyTorch setup guide](https://docs.astral.sh/uv/guides/integration/pytorch/) for the package-index mechanism.
+For the longer recipe, stopping/resuming, browser updates and TensorBoard, follow the [training guide](docs/training.md). Sleep suspends local training. The program does not change laptop power settings. More workers use more resources; there is no hard CPU percentage cap.
 
-The check opens an isolated Chrome profile, verifies native movement and game settings, and writes `runs/check.json`. It does not use your personal Chrome profile. Python evaluation requires the Chrome version recorded in the checkpoint contract; a mismatch is reported instead of silently changing the conditions.
-
-A reviewed Chrome patch update can be accepted for full-state training continuation into a new run directory. See the [browser update procedure](docs/training-5m.md#after-a-chrome-patch-update); normal resume remains strict.
-
-## Train a model
-
-For the fresh **five-million-step** experiment, follow the [start / stop / resume guide](docs/training-5m.md). Its settings are saved in [`configs/scratch-5m.args`](configs/scratch-5m.args).
-
-Start with one background game to check resource use:
+Evaluate the bundled model without changing weights:
 
 ```bash
-uv run dino train --run runs/my-first-run --workers 1 --steps 20000
+uv run --frozen dino evaluate --checkpoint models/best.json --episodes 10
+uv run --frozen dino play --checkpoint models/best.json --episodes 3
 ```
 
-For a longer run, use a new directory and more workers if your computer can handle them:
+`evaluate` uses a background browser; `play` shows it. Both create isolated profiles and save JSON reports under ignored `runs/`. Python requires the Chrome version recorded in the model contract. Only load Python model/replay files you trust.
 
-```bash
-uv run dino train --run runs/my-long-run --workers 4 --steps 2000000
-```
+## Repository map
 
-Training needs **no recorded human gameplay or prebuilt dataset**. The agent plays, stores its transitions in replay memory, and learns from random batches of that experience. Checkpoints are saved and evaluated every 25,000 steps by default. Eight evaluation games choose the best checkpoint by median survival, with mean survival breaking ties.
-
-| Setting | Meaning |
+| Directory | Contains |
 |---|---|
-| `--workers 1`, `2`, `4`, or `8` | Number of parallel native Chrome games; default is 8 |
-| `--steps` | Total target for that run, including steps already trained when resuming |
-| `--max-seconds 300` | Episode test/training cap; a cap is not a collision |
-| `--show-browser` | Shows the games; leave off for background training |
-| `--exploration-final 0.01` | Explicitly use 1% late random actions; default for a new run is 5% |
+| [`dino_rl/`](dino_rl/) | Game environment, DQN training, evaluation, checkpoints and telemetry |
+| [`extension/`](extension/) | Installable extension and exported policy |
+| [`models/`](models/) | Small inference ZIP, provenance, measured results and model card |
+| [`configs/`](configs/) | Reusable training arguments |
+| [`scripts/`](scripts/) | Python-to-browser policy export |
+| [`tests/`](tests/) | Algorithm contracts, export parity and native Chrome controls |
+| [`docs/`](docs/) | Simple guides, diagrams and review record |
+| `runs/` | Local replay, checkpoints, logs and raw reviews; **ignored by Git** |
 
-Torch uses one CPU thread. A one-worker run also uses a lower scheduling priority. Native-clock training has no hard CPU percentage cap: choose fewer workers to reduce load. Resource figures are sampled estimates and can miss short-lived browser helpers. More workers collect experience in parallel; they do not speed up the game’s physics. Closing the lid or putting the laptop to sleep suspends local training. This project does not change power settings or bypass office controls.
-
-During learning or checkpoint evaluation, press **Ctrl+C once** to request a checkpointed stop. It finishes the current worker step and saves learning state. A cancelled evaluation batch cannot replace the best model. During the initial setup/baseline games, Ctrl+C exits before learning starts. Hard termination may lose progress since the last checkpoint.
-
-Resume a full local training checkpoint:
-
-```bash
-uv run dino train --run runs/my-first-run --resume runs/my-first-run/latest.json --workers 1 --steps 50000
-```
-
-Train a new run starting from the released model’s weights:
-
-```bash
-uv run dino train --run runs/from-release --initialize-from models/best.json --workers 1 --steps 200000
-```
-
-`--resume` restores weights, replay memory, optimizer and random-generator state. `--initialize-from` copies policy weights and starts fresh replay and optimizer state. The released model contains inference files only, so use `--initialize-from` with it. Browser restarts and real-time scheduling mean a resumed run is not a bit-for-bit replay.
-
-## Evaluate and export
-
-Evaluate with exploration disabled and normal game time:
-
-```bash
-uv run dino evaluate --checkpoint models/best.json --episodes 10 --run runs/release-test
-uv run dino play --checkpoint models/best.json --episodes 3 --run runs/demo
-```
-
-`evaluate` runs in the background by default; add `--show-browser` to see it. `play` shows the browser. Both write JSON reports without changing weights. They create their own isolated browser and do not attach to your existing tabs.
-
-After training, export the selected model for the extension:
-
-```bash
-uv run python scripts/export_policy.py --checkpoint runs/my-long-run/best.json --output extension/model.json
-```
-
-Reload the extension in `chrome://extensions`, then open a new game through it. The exporter supports this project’s 28 → 64 → 64 → 3 DQN contract. Load only model/checkpoint files you trust: Python model and replay formats can contain serialized executable objects.
-
-## Read the training graphs
-
-```bash
-uv run tensorboard --logdir runs --port 6006
-```
-
-Open **http://localhost:6006**. Pick the run you want to inspect in the sidebar. The horizontal axis is usually the number of training steps; standalone tests are plotted at their checkpoint’s step number.
-
-| TensorBoard tag | How to read it |
-|---|---|
-| `eval/median_survival_seconds` | Main checkpoint selection metric. Higher is better; compare several evaluations. |
-| `eval/mean_survival_seconds` | Average time alive in frozen-policy evaluation games. |
-| `eval/mean_score` | Average native game score in those evaluation games. |
-| `rollout/ep_rew_mean` | Recent training reward, including exploratory mistakes. |
-| `rollout/exploration_rate` | Chance of a random training action; not an evaluation error rate. |
-| `train/loss` | Error in predicted action values. A falling loss alone does not prove better play. |
-| `birds/eval/pass_rate_y50` and other heights | Passed birds divided by passed + collided birds at that game Y position. Unresolved birds are excluded. |
-| `test/headless/*` or `test/visible/*` | Separate normal-speed tests requested through `evaluate`. |
-| `diagnostics/controlled/*` | Legacy clock-controlled diagnostics; do not treat these as normal-speed results. |
-
-Evaluation is the closest equivalent to a validation check here: it freezes the model and disables random actions. The tests used to select `best.json` are still selection data. A separate visible test gives a more useful final check. Native obstacle randomness is not fully seeded, so results vary.
-
-## Project structure
-
-```text
-dino_rl/                 Python package
-  __main__.py            CLI and CPU-thread setup
-  env.py                 Native Chrome ↔ Gymnasium interface
-  config.py              Game contract and DQN defaults
-  training.py            Learning and checkpoint schedule
-  evaluation.py          Frozen-policy tests and bird metrics
-  checkpoints.py         Save/load metadata and learning state
-  parallel.py            Worker lifecycle and replay migration
-  resources.py           Resource telemetry
-  checks.py              Game-interface checks
-extension/               Installable extension and exported weights
-models/                  Small inference release, model card, validation results
-scripts/                 Policy export for browser inference
-configs/                 Saved command arguments for planned experiments
-tests/                   Python, JavaScript and opt-in Chrome checks
-docs/                    Algorithm explanation, design, diagram and review
-runs/                    Local experiments, replay, logs and reports; ignored by Git
-.github/workflows/       CI checks
-```
+The ZIP serves Python and the JSON serves the extension. Both are required formats of the same policy; full learning checkpoints are not published.
 
 ## Development checks
 
 ```bash
 uv sync --frozen --group dev
-uv run ruff check .
-uv run ruff format --check .
-uv run python -m unittest discover -s tests
+uv run --frozen ruff check .
+uv run --frozen ruff format --check .
+uv run --frozen python -m unittest discover -s tests
 npm test
-uv run pip-audit
+uv run --frozen pip-audit
+DINO_BROWSER_TESTS=1 uv run --frozen python -m unittest discover -s tests -p test_extension_browser.py -v
 ```
 
-Native extension lifecycle tests are opt-in and use an isolated Chrome profile:
+CI runs Python, JavaScript and formatting checks. Native Chrome checks run separately in temporary local profiles. Their extension-loading flag applies only to tests.
 
-```bash
-DINO_BROWSER_TESTS=1 uv run python -m unittest discover -s tests -p test_extension_browser.py -v
-```
-
-These tests load the unpacked extension through Chrome’s test debugging interface. Their test-only launch flag is confined to the temporary test profile; normal installation uses Chrome’s Load unpacked button. CI runs the Python and JavaScript checks. The native Chrome lifecycle checks were run locally on the tested Chrome version.
-
-The Python/JavaScript parity test checks observations, Q-values and chosen actions on 500 generated game states using the released weights. The browser tests cover autoplay, manual takeover, focus changes, disconnect, navigation, debugger cancellation and incompatible game dimensions.
-
-Read the [algorithm guide](docs/how-it-works.md), [extension design](docs/extension-design.md), [model card](models/README.md), and [review record](docs/review.md) for details.
+Read [how DQN works](docs/how-it-works.md), the [extension design](docs/extension-design.md), or the [review record](docs/review.md).
 
 ## License
 
-Project code and released model: [MIT](LICENSE). Chrome and its Dinosaur game remain Google/Chromium software; their code and artwork are not bundled here. The optional diagram viewer uses the installed [Archify](https://github.com/tt-a1i/archify) 2.17 distribution; its [MIT notice](docs/assets/archify-LICENSE.txt) is included. Its embedded font keeps its own license notice in the HTML.
+Code and released model: [MIT](LICENSE). Chrome and its Dinosaur game remain Google/Chromium software; their code and artwork are not bundled.

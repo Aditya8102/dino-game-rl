@@ -1,6 +1,7 @@
 // This function runs in the native game page, not in the extension's worker.
-export function installController(model, makeObservation, evaluateQ) {
-  if (location.href !== "chrome-error://chromewebdata/" || typeof Runner === "undefined") {
+export function installController(model, makeObservation, evaluateQ, documentTimeOrigin) {
+  if (location.href !== "chrome-error://chromewebdata/" || typeof Runner === "undefined" ||
+      performance.timeOrigin !== documentTimeOrigin) {
     throw new Error("This tab is not Chrome's native offline Dino game.");
   }
   globalThis.__dinoRl?.destroy();
@@ -8,10 +9,13 @@ export function installController(model, makeObservation, evaluateQ) {
   validateGame();
   const CONNECTION_TIMEOUT_MS = 500;
   const STATUS_REFRESH_MS = 1000;
+  const CONNECTION_ENDED = "Connection ended. Reopen Dino from the extension.";
   let enabled = false;
+  let hasStarted = false;
+  let connectionExpired = false;
   let previousAction = 0;
   let phase = "paused";
-  let reason = "Ready. Press Resume to let the model play.";
+  let reason = "Ready. Press Start AI to let the model play.";
   let lastPulse = performance.now();
   let lastPaint = 0;
   let predictions = 0;
@@ -32,7 +36,7 @@ export function installController(model, makeObservation, evaluateQ) {
   const panel = document.createElement("section");
   panel.setAttribute("aria-label", "Dino RL controls");
   const title = document.createElement("strong");
-  title.textContent = "Dino RL";
+  title.textContent = `Dino RL · step ${model.checkpoint_step.toLocaleString("en-US")}`;
   const message = document.createElement("p");
   message.setAttribute("role", "status");
   const button = document.createElement("button");
@@ -75,7 +79,7 @@ export function installController(model, makeObservation, evaluateQ) {
 
   function paint() {
     message.textContent = enabled ? `Model playing · score ${r.distanceMeter.getActualDistance(Math.ceil(r.distanceRan))}` : reason;
-    button.textContent = enabled ? "Pause" : r.crashed ? "Restart with AI" : "Resume";
+    button.textContent = enabled ? "Pause" : r.crashed ? "Restart with AI" : hasStarted ? "Resume" : "Start AI";
     button.disabled = phase === "disconnected";
     button.setAttribute("aria-pressed", String(enabled));
     lastPaint = performance.now();
@@ -89,18 +93,24 @@ export function installController(model, makeObservation, evaluateQ) {
   function pause(text, nextPhase = "paused") {
     enabled = false;
     setAction(0);
-    phase = nextPhase;
-    reason = text;
+    phase = connectionExpired ? "disconnected" : nextPhase;
+    reason = connectionExpired ? CONNECTION_ENDED : text;
     paint();
     return status();
+  }
+
+  function connectionAlive() {
+    if (!connectionExpired && performance.now() - lastPulse > CONNECTION_TIMEOUT_MS) {
+      connectionExpired = true;
+      pause(CONNECTION_ENDED, "disconnected");
+    }
+    return !connectionExpired;
   }
 
   function resume() {
     try {
       validateGame();
-      if (performance.now() - lastPulse > CONNECTION_TIMEOUT_MS) {
-        return pause("Connection ended. Reopen Dino from the extension.", "disconnected");
-      }
+      if (!connectionAlive()) return status();
       if (document.hidden || !document.hasFocus()) return pause("Focus the game and press Resume.");
       setAction(0);
       if (r.crashed) r.restart();
@@ -110,6 +120,7 @@ export function installController(model, makeObservation, evaluateQ) {
       } else if (r.paused) r.play();
       // Only this explicit control changes the authorization latch to true.
       enabled = true;
+      hasStarted = true;
       phase = "playing";
       reason = "Model playing";
       paint();
@@ -122,7 +133,7 @@ export function installController(model, makeObservation, evaluateQ) {
   function humanInput(event) {
     if (!event.isTrusted) return;
     const activatesButton = event.composedPath().includes(button) &&
-      (event.type === "pointerdown" ||
+      ((event.type === "pointerdown" && event.button === 0) ||
         (event.type === "keydown" && ["Enter", " "].includes(event.key)));
     if (!activatesButton) pause("Paused by your input. Press Resume when ready.");
   }
@@ -148,10 +159,7 @@ export function installController(model, makeObservation, evaluateQ) {
   });
 
   const timer = setInterval(() => {
-    if (performance.now() - lastPulse > CONNECTION_TIMEOUT_MS) {
-      if (phase !== "disconnected") pause("Connection ended. Reopen Dino from the extension.", "disconnected");
-      return;
-    }
+    if (!connectionAlive()) return;
     if (!enabled) return;
     try {
       if (document.hidden || !document.hasFocus()) return lostFocus();
@@ -177,7 +185,11 @@ export function installController(model, makeObservation, evaluateQ) {
     delete globalThis.__dinoRl;
   }
 
-  globalThis.__dinoRl = {status, pause, resume, destroy, pulse() { lastPulse = performance.now(); return status(); }};
-  // Initial authorization is synchronous with installation; no delayed worker resume can undo input.
-  return resume();
+  globalThis.__dinoRl = {status, pause, resume, destroy, pulse() {
+    if (connectionAlive()) lastPulse = performance.now();
+    return status();
+  }};
+  // Only the page's explicit Start/Resume button may authorize automated input.
+  paint();
+  return status();
 }

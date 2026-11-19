@@ -30,7 +30,7 @@ def movement_trace(env: DinoEnv, hold_steps: int = 4) -> list[dict]:
 def check(args: Namespace) -> None:
     """Verify native movement and save a reproducible interface report."""
     report = {"format_version": 1, "clock_mode": "native"}
-    env = DinoEnv(realtime=True, show_browser=args.show_browser)
+    env = DinoEnv(show_browser=args.show_browser)
     try:
         check_env(env, warn=True, skip_render_check=True)
         assert env.raw["runningMs"] < 10000, "Clock units are incorrect"

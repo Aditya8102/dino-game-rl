@@ -96,7 +96,7 @@ At first the model knows little. If it always repeated its current favorite acti
 |---|---|
 | Start of a fresh run | 100% random actions |
 | First 50,000 absolute steps of that run | Random-action chance falls linearly |
-| Later training | 5% by default; the released model’s later run used 1% |
+| Later training | 5% by default; the released model used 1% |
 | Evaluation and extension use | 0%; always choose the largest Q-value |
 
 A 1% exploration rate means roughly one random choice in a hundred decisions. That choice may accidentally equal the model’s preferred action. It is a learning setting, not a claim that the model is 99% accurate. Resuming a run keeps its saved exploration setting unless explicitly overridden.
@@ -113,10 +113,8 @@ A 1% exploration rate means roughly one random choice in a hundred decisions. Th
 
 Python reads the state, predicts an action, applies it, and waits for the next nominal 50 ms boundary. Browser inference uses a page timer at the same nominal interval, which avoids a Python round trip. Both depend on real scheduling; 50 ms is a target cadence, not a guaranteed deadline.
 
-The optional `--controlled-clock` evaluation mode is an older diagnostic that advances a browser clock explicitly. It is not the reported normal-speed validation and is not used by the extension.
-
 ## What to improve next
 
-Freeze the selected model and collect more **visible, normal-speed games**, including an extension benchmark. Compare survival times, cactus collisions and bird outcomes. If failures repeat in a particular situation, first check the state/action mapping and timing. Then consider more ordinary training and compare new checkpoints on the same evaluation conditions.
+Freeze the selected model and collect more **visible, normal-speed games**, and extension games. Compare survival times, cactus collisions and bird outcomes. If failures repeat in a particular situation, first check the state/action mapping and timing. Then consider more ordinary training and compare new checkpoints on the same evaluation conditions.
 
 A lower loss or more training steps alone is not evidence of better play. Keep the best evaluated checkpoint, and report the sample size and any test caps.

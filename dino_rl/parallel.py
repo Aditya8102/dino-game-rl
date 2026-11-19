@@ -79,9 +79,7 @@ def worker_env(max_seconds: float, show_browser: bool) -> Monitor:
     if current_process().name != "MainProcess":
         # The parent handles Ctrl+C and writes the final checkpoint.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-    environment = Monitor(
-        DinoEnv(max_seconds=max_seconds, show_browser=show_browser, realtime=True, cpu_cores=None)
-    )
+    environment = Monitor(DinoEnv(max_seconds=max_seconds, show_browser=show_browser))
     if current_process().name != "MainProcess":
         Finalize(environment, environment.close, exitpriority=10)
     return environment

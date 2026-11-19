@@ -1,6 +1,6 @@
 [project]
 name = "dino-rl"
-version = "0.1.0"
+version = "0.2.0"
 description = "Learn Chrome's built-in Dino game with a local, CPU-limited DQN agent."
 readme = "README.md"
 license = "MIT"

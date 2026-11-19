@@ -1,93 +1,53 @@
-# Review and verification
+# Release review
 
-This record explains what was checked before the first GitHub release. It is a bounded project review, not a security certification or a claim of perfect game performance.
+This records the **November 19, 2026 / 0.2.0** release audit. It used [Elephant & Goldfish Model (EGM)](https://github.com/google/elephant-goldfish-model) 0.1.1 fresh-context reviewers and the installed Ponytail simplicity workflow. The main agent applied fixes and ran the checks. Raw reports stay in ignored local review artifacts.
 
-The project used the installed [Elephant & Goldfish Model (EGM)](https://github.com/google/elephant-goldfish-model) plugin, version 0.1.1. Independent reviewers started without conversation history and read the supplied source files, persona and standard. The main agent assessed their findings and made the fixes. This was direct reviewer dispatch, not a claim that every stage of the full EGM process or its convergence rule was completed.
+This was a bounded release audit using EGM personas, not the full five-stage design process or a claim of formal convergence.
 
-## Findings and changes
+## Findings and fixes
 
-| Finding | Changed files | Resolution and regression check |
+| Finding | Resolution | Evidence |
 |---|---|---|
-| Worker actions could conflict with immediate manual takeover in the proposed design | `extension/controller.js`, `extension/background.js`, `docs/extension-design.md` | Decisions and the final enable flag live together in the page. Heartbeats cannot enable the agent. Real-input and stop-counter browser tests check this. |
-| Runtime game compatibility needed an explicit gate | `dino_rl/config.py`, `scripts/export_policy.py`, `extension/policy.js`, `extension/controller.js` | Export dimensions/physics/schema; validate before control and during inference. Corrupt-state, unknown-obstacle and resize tests cover rejection. |
-| Design alternatives were missing | `docs/extension-design.md` | Added a short trade-off table for protected Dino, native offline tab, clone and local service. |
-| Declared Stable-Baselines3 minimum did not match an imported API | `pyproject.toml`, `uv.lock` | Require the tested 2.9.2-or-later API and keep the resolved environment in the lockfile. |
-| Changing worker count lost a full replay buffer’s oldest-entry boundary | `dino_rl/parallel.py`, `tests/test_contract.py` | Copy wrapped replay chronologically; test flags, contents and the next eviction. |
-| Same-run resume could mix different evaluation time limits | `dino_rl/training.py`, `tests/test_contract.py` | Reject a changed cap before Chrome opens. A new run directory keeps a separate selection history. |
-| A failed worker could leave other games running | `dino_rl/parallel.py`, `tests/test_parallel.py` | Own bounded worker cleanup and child environment finalization; test step failure and partial startup. Preserve a startup exception if cleanup also fails. |
-| One-decision diagnostics had no timing intervals for a percentile | Former standalone transfer diagnostic and its test | Fixed missing interval percentiles in the initial release. The standalone tool was retired during later cleanup; current evaluation uses `dino evaluate`. |
-| CLI mixed orchestration with training, storage and checks | `dino_rl/__main__.py`, `training.py`, `evaluation.py`, `checkpoints.py`, `checks.py` | Separate existing responsibilities without changing the algorithm; retain contract/resume regressions. |
-| Release model has no full training state | `dino_rl/training.py`, `tests/test_contract.py`, `models/README.md` | Reject `--resume` on the inference release before launching Chrome; document `--initialize-from`. |
-| Scrolling over the control panel escaped manual takeover | `extension/controller.js`, `tests/test_extension_browser.py` | Only actual button activation is exempt; wheel input pauses even over the panel. |
-| Headless Chrome reports multiple tabs as focused/visible | `extension/background.js`, `tests/test_extension_browser.py` | Also pause on Chrome’s explicit active-tab/window events. Verify tab return does not resume. |
-| CPU telemetry could be mistaken for exact accounting | `dino_rl/resources.py`, `README.md` | Describe sampled estimates; no extra process-accounting system was added. |
-| Ctrl+C could wait for a full checkpoint evaluation batch | `dino_rl/evaluation.py`, `dino_rl/training.py`, `tests/test_contract.py` | Check the stop request between worker steps, discard partial evaluation results, and preserve the existing best model. |
-| The initial worker resume could arrive after manual takeover | `extension/controller.js`, `extension/background.js`, `tests/test_extension_browser.py` | Start control synchronously with installation; delay the worker reply in a regression and verify manual input remains paused. |
-| Exact compatibility settings were missing from the design text | `docs/extension-design.md` | Add the complete runner and dinosaur field/value tables, with exact-match semantics. |
-| Resume could briefly re-enable a controller after its connection ended | `extension/controller.js`, `tests/test_extension_browser.py` | Only worker pulses refresh connection health; the disconnected page disables Resume and rejects attempts to re-enable it. |
+| Ctrl+C callback counted a step before SB3 stored its transition | Stop after the ordinary collection batch commits; preserve saved DQN call counter | Actual SB3 interrupt/save/resume regression |
+| Exploration action generator was missing from saved random states | Save/restore action-space RNG; warn explicitly for historical checkpoints | Restored action-sequence regression |
+| Resource sampling failure could leave opened games behind | Create the monitor inside the environment’s cleanup scope | Constructor-failure regression for training and evaluation |
+| Heartbeat expiry could be cleared by later input or a late pulse | Latch expiry before refresh; disable Resume until a new session | Native late-heartbeat and manual-input test |
+| Automatic startup could take control after human input during loading | Install paused; require the page’s Start AI button | Input before/during installation tests |
+| Navigation could redirect a delayed installation or publish stale ready status | Bind installation to document identity and check session after the reply | Navigation tests before/after installation |
+| Secondary clicks on the control button escaped manual takeover | Only primary button activation is exempt | Native right-click takeover check |
+| Export could accept changed action order or interval | Reject incompatible contracts before loading the model | Export rejection and numerical parity tests |
+| Extension update instructions omitted downloading new files | Update the loaded folder before Reload, then confirm version and model step | Documentation reviewer re-read |
 
-## Check groups
+The Python reviewer inspected checkpoint, replay, timeout, cleanup and SB3 collection behavior. The extension reviewer inspected the page controller, worker, popup and lifecycle tests. Both re-read the fixes. A third fresh-context reviewer checked plain language, current results and consistency with source, then confirmed its update-instruction finding was fixed. No known unresolved finding remains from these bounded audits. Reviews are static; test results below come from separate execution.
 
-| Check | Command / scope |
+## Simplicity and repository cleanup
+
+- Removed the unused controlled-clock evaluation mode and CPU pacing branch. Training and evaluation now use native game time only.
+- Removed the large optional HTML diagram viewer and its source/license notice. Mermaid workflows and a small results chart remain.
+- Consolidated training instructions into one guide and replaced old model results with current measurements.
+- Kept both model formats: Python needs the inference ZIP; the extension needs JSON weights.
+- Excluded replay, full training checkpoints, browser profiles, logs, raw reviews, caches and build archives from Git. Unique local experiment history is retained.
+- Kept the existing DQN architecture and learning settings. No avoidance heuristic, game clone, inference service or UI framework was added.
+
+## Verification
+
+| Check | Scope |
 |---|---|
-| Python style | `uv run ruff check .` and `uv run ruff format --check .` |
-| Python contracts and regressions | `uv run python -m unittest discover -s tests` |
-| JavaScript policy | `npm test` |
-| Real Chrome extension lifecycle | `DINO_BROWSER_TESTS=1 uv run python -m unittest discover -s tests -p test_extension_browser.py -v` |
-| Python ↔ JavaScript parity | Included in Python suite: 500 generated states, released weights, identical chosen actions |
-| Dependency audit | `uv run pip-audit`; third-party packages checked, local unpublished package skipped |
-| Packaging and publication | Frozen environment, build contents, staged files, private personal GitHub repository |
+| Python tests | State/action contracts, fresh initialization, full-state resume, replay order, interrupts and worker cleanup |
+| Export parity | 500 generated states; float32 observations match, Q-values agree within tolerance, chosen actions match |
+| JavaScript tests | Model contract, release pointer/hash consistency, observation conversion and Q calculation |
+| Native Chrome tests | Explicit start, manual/focus takeover, disconnect, navigation, expiry, dimensions and other tabs staying online |
+| Native game check | Default physics, movement, collisions and decision timing |
+| Model selection | Three policies × eight frozen-policy native games on Chrome 157.0.8103.79 |
+| Extension benchmark | Three new games; two five-minute caps, one collision at 286.4 seconds |
+| Release hygiene | Frozen dependency install, lint/format, dependency audit, build/archive contents and publication-file inspection |
 
-The small model ZIP and its deterministic JSON export are intentional release files. Replay, optimizer-resume state, machine paths, training logs, browser profiles, audit logs and review transcripts stay outside Git. The previous prototype guide was superseded by the current algorithm and training guides and removed during later cleanup.
+Final local results: **31 Python checks, 8 native Chrome lifecycle checks and 4 JavaScript checks passed**. The clean non-editable environment ran 39 Python-discovered tests: 31 passed and the eight opt-in Chrome checks were run separately. Native movement, lint and formatting also passed; the source/wheel built successfully, and the publication scan found no private paths or credential-pattern matches, including inside the inference ZIP.
 
-## Visual documentation
+The dependency audit reported no known vulnerabilities in audited third-party packages; the unpublished local project was skipped. CI runs Python, JavaScript and formatting checks. Local Chrome tests use temporary profiles, not the user’s browsing profile.
 
-The README and guides use plain English, Mermaid workflows and tables. The visible-test chart comes from `models/validation.json`; the capped first game is marked explicitly.
+## Performance limits
 
-The optional explorable architecture diagram was created with installed **Archify 2.17**. Its JSON source and self-contained HTML are committed. Archify’s delivery check passed all nine showcase checks with zero errors/warnings. Automated browser checks passed containment at 1440×900, 1600×1000, 1920×1080 and 2048×1320. Rendered light and dark screenshots were inspected separately for readable nodes, labels and connections. Raw receipts and screenshots stay in local review artifacts.
+The selected **1,250,400-step** policy led the fresh comparison with **135.1 seconds median survival**. The independent three-game extension benchmark was stronger, but its different runtime/workload and small sample do not establish a universal score. Birds still caused failures in the selection batch. The five-million-step study stopped at **4,198,264 saved steps**; it did not finish its target.
 
-## Practical limits
-
-- Native Chrome behavior was tested on the version recorded in the model card, on macOS. Other platforms and later Chrome versions are not claimed as verified.
-- The extension’s numerical behavior and controls are checked. A long extension score benchmark remains outstanding.
-- Only three separate visible validation games completed. That sample does not establish a reliable maximum score or perfect bird handling.
-- Browser policies may prohibit the required extension/debugger access. No bypass is provided.
-- Browser scheduling and native obstacle randomness prevent exact replay of training trajectories.
-
-## Final local results
-
-- Clean temporary Python environment: 23 tests passed; native Chrome tests were run separately.
-- Native Chrome extension checks: five tests passed, including the opening/manual-input race, connection expiry and disabled Resume after debugger cancellation.
-- JavaScript policy suite: four tests passed.
-- Python style and formatting: passed.
-- Native movement/interface check: passed on Chrome 157.0.8103.78.
-- Source and wheel builds: passed; generated experiment directories were absent from the archives.
-- Dependency audit: no known vulnerabilities among audited third-party packages; the unpublished local package was skipped.
-- Publication scan: no machine paths or credential-pattern matches in the intended release files, including the model ZIP.
-
-The two final fresh-context reviewers completed their source/document audits. Their material findings were the opening resume race, missing exact compatibility values, and cancellation behavior during evaluation. Each was fixed as described above. Test execution and packaging verification were performed separately by the main agent. No known unresolved Major or Blocker from these bounded reviews remains; this does not claim the full EGM convergence protocol.
-
-GitHub CI runs separately after publication; local success does not assert a remote CI result.
-
-## Later cleanup
-
-The standalone native-versus-controlled-clock comparison script and its dedicated test were removed after the main `dino evaluate` command became the evaluation entry point. The explicit controlled-clock CLI diagnostic remains available for historical checks. The active trainer, environment, hyperparameters and extension inference were unchanged.
-
-Stale local build archives, the superseded prototype PDF/HTML guide and Finder metadata were removed. Unique historical experiments, checkpoints, released model files, current diagrams and review evidence were retained.
-
-<details>
-<summary>Architecture diagram receipt</summary>
-
-| Field | Result |
-|---|---|
-| Type | architecture |
-| Source | `docs/architecture.json` |
-| Output | `docs/architecture.html` |
-| Validation | 9/9 showcase, zero errors, zero warnings |
-| Automated browser evidence | passed |
-| Visual review | passed, light and dark endpoint screenshots |
-| Correction rounds | 1 |
-| Source SHA-256 | `0341280864d8f310170b45b816e2c01a802e8e996beb8afb84f6e4980aaccd26` |
-| HTML SHA-256 | `d311f2e684c49805487e1d08f56141d18cf3f94299a4d9e78632bdbc84ad3ce0` |
-
-</details>
+Chrome **157.0.8103.79 on macOS** is the verified release environment. Native obstacles and browser scheduling vary. No claim is made of perfect play, unlimited survival, a completed five-million-step run or untested Chrome compatibility. See the [model card](../models/README.md) for the measurements and [extension design](extension-design.md) for control boundaries.

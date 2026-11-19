@@ -1,131 +1,341 @@
 {
-  "checkpoint_step": 1500576,
+  "date": "2026-11-19",
+  "chrome_version": "157.0.8103.79",
   "clock_mode": "native",
-  "browser_mode": "visible",
   "exploration_enabled": false,
-  "completed_episodes": 3,
-  "planned_episodes": 10,
-  "stopped_by_user": true,
   "max_seconds": 300,
-  "median_survival_seconds": 224.75709999999268,
-  "mean_score": 3551.3333333333335,
-  "bird_metrics": {
-    "50": {
-      "encounters": 57,
-      "passes": 57,
-      "collisions": 0
-    },
-    "75": {
-      "encounters": 65,
-      "passes": 64,
-      "collisions": 0
-    },
-    "100": {
-      "encounters": 45,
-      "passes": 45,
-      "collisions": 0
-    }
+  "selection": {
+    "episodes_per_candidate": 8,
+    "parallel_workers": 8,
+    "metric": "median_survival_seconds, then mean_survival_seconds",
+    "selected_checkpoint_step": 1250400,
+    "limitations": "Small model-selection sample. Native obstacles are random, unseeded and different between games.",
+    "candidates": [
+      {
+        "checkpoint_step": 1250400,
+        "id": "scratch-1.25m",
+        "source_checkpoint_sha256": "a154443e46814607071d4aee370dd4a33d88d55bc390ba331ccedfe0df04bfe6",
+        "episodes": 8,
+        "mean_survival_seconds": 136.0797500000076,
+        "median_survival_seconds": 135.12769999998767,
+        "mean_score": 2069.875,
+        "time_limit_completions": 0,
+        "bird_metrics": {
+          "50": {
+            "encounters": 91,
+            "passes": 84,
+            "collisions": 7
+          },
+          "75": {
+            "encounters": 78,
+            "passes": 77,
+            "collisions": 1
+          },
+          "100": {
+            "encounters": 86,
+            "passes": 86,
+            "collisions": 0
+          }
+        },
+        "records": [
+          {
+            "episode": 1,
+            "survival_seconds": 44.99739999997606,
+            "score": 496,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 2,
+            "survival_seconds": 119.54370000004727,
+            "score": 1718,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 1
+          },
+          {
+            "episode": 3,
+            "survival_seconds": 124.65130000001157,
+            "score": 1818,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 1
+          },
+          {
+            "episode": 4,
+            "survival_seconds": 131.72159999996367,
+            "score": 1956,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 5,
+            "survival_seconds": 138.5338000000117,
+            "score": 2089,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 6,
+            "survival_seconds": 138.73819999998793,
+            "score": 2093,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 7,
+            "survival_seconds": 192.2809000000374,
+            "score": 3137,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 8,
+            "survival_seconds": 198.17110000002523,
+            "score": 3252,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          }
+        ]
+      },
+      {
+        "checkpoint_step": 1500576,
+        "id": "previous-release-1.50m",
+        "source_checkpoint_sha256": "015d1026be12cc423c445956a9949451e1dea341af71f35be3425282693dfc74",
+        "episodes": 8,
+        "mean_survival_seconds": 105.01878750000071,
+        "median_survival_seconds": 108.34580000001118,
+        "mean_score": 1450.625,
+        "time_limit_completions": 0,
+        "bird_metrics": {
+          "50": {
+            "encounters": 40,
+            "passes": 37,
+            "collisions": 3
+          },
+          "75": {
+            "encounters": 55,
+            "passes": 55,
+            "collisions": 0
+          },
+          "100": {
+            "encounters": 73,
+            "passes": 72,
+            "collisions": 0
+          }
+        },
+        "records": [
+          {
+            "episode": 1,
+            "survival_seconds": 78.89969999998765,
+            "score": 990,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 2,
+            "survival_seconds": 89.56269999998709,
+            "score": 1167,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 3,
+            "survival_seconds": 96.8626000000229,
+            "score": 1294,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 4,
+            "survival_seconds": 105.75160000002347,
+            "score": 1455,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 5,
+            "survival_seconds": 110.93999999999889,
+            "score": 1552,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 6,
+            "survival_seconds": 113.43539999997597,
+            "score": 1600,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 7,
+            "survival_seconds": 119.95849999999899,
+            "score": 1727,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 8,
+            "survival_seconds": 124.7398000000108,
+            "score": 1820,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          }
+        ]
+      },
+      {
+        "checkpoint_step": 2297656,
+        "id": "continuation-2.30m",
+        "source_checkpoint_sha256": "9e40eee003d13880d307846a7cd7b3df9ac15c9fee9b2081c1a69e9949a01317",
+        "episodes": 8,
+        "mean_survival_seconds": 112.3847374999891,
+        "median_survival_seconds": 108.16174999999946,
+        "mean_score": 1606.25,
+        "time_limit_completions": 0,
+        "bird_metrics": {
+          "50": {
+            "encounters": 54,
+            "passes": 50,
+            "collisions": 4
+          },
+          "75": {
+            "encounters": 69,
+            "passes": 69,
+            "collisions": 0
+          },
+          "100": {
+            "encounters": 76,
+            "passes": 76,
+            "collisions": 0
+          }
+        },
+        "records": [
+          {
+            "episode": 1,
+            "survival_seconds": 49.564799999952044,
+            "score": 557,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 2,
+            "survival_seconds": 106.21060000002319,
+            "score": 1463,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 3,
+            "survival_seconds": 106.73549999999902,
+            "score": 1473,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 4,
+            "survival_seconds": 107.66860000002309,
+            "score": 1491,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 5,
+            "survival_seconds": 108.65489999997583,
+            "score": 1509,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 6,
+            "survival_seconds": 134.356599999964,
+            "score": 2007,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 7,
+            "survival_seconds": 134.38219999998756,
+            "score": 2008,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          },
+          {
+            "episode": 8,
+            "survival_seconds": 151.50469999998808,
+            "score": 2342,
+            "crashed": true,
+            "truncated": false,
+            "frame_stalls": 0
+          }
+        ]
+      }
+    ]
   },
-  "records": [
-    {
-      "episode": 1,
-      "survival_seconds": 300.032199999985,
-      "score": 4626,
-      "truncated": true,
-      "collision": {
-        "motion": "time-limit"
+  "extension_benchmark": {
+    "episodes": 3,
+    "parallel_profiles": 3,
+    "browser_mode": "headless",
+    "checkpoint_step": 1250400,
+    "chrome_version": "157.0.8103.79",
+    "model_json_sha256": "76a5d273bff74be5e6abb474ea76475393986aad8abde6c1713060d9f999d5e2",
+    "max_seconds": 300,
+    "median_survival_seconds": 300.33710000002384,
+    "mean_survival_seconds": 295.6933666666746,
+    "mean_score": 5473.666666666667,
+    "time_limit_completions": 2,
+    "limitations": "Three independent background extension games, separate from model selection. No visible-window score benchmark in this release.",
+    "records": [
+      {
+        "episode": 1,
+        "chrome_version": "157.0.8103.79",
+        "survival_seconds": 300.338,
+        "score": 5564,
+        "crashed": false,
+        "truncated": true,
+        "predictions": 6007,
+        "checkpoint_step": 1250400
       },
-      "bird_metrics": {
-        "50": {
-          "encounters": 30,
-          "passes": 30,
-          "collisions": 0
-        },
-        "75": {
-          "encounters": 28,
-          "passes": 28,
-          "collisions": 0
-        },
-        "100": {
-          "encounters": 25,
-          "passes": 25,
-          "collisions": 0
-        }
-      }
-    },
-    {
-      "episode": 2,
-      "survival_seconds": 224.75709999999268,
-      "score": 3159,
-      "truncated": false,
-      "collision": {
-        "obstacle": {
-          "id": 522,
-          "x": 26,
-          "y": 90,
-          "width": 75,
-          "height": 50,
-          "type": "cactusLarge",
-          "speedOffset": 0
-        },
-        "motion": "descending",
-        "dino_height": 10,
-        "vertical_velocity": 5.798799999356269
+      {
+        "episode": 2,
+        "chrome_version": "157.0.8103.79",
+        "survival_seconds": 300.33710000002384,
+        "score": 5564,
+        "crashed": false,
+        "truncated": true,
+        "predictions": 6007,
+        "checkpoint_step": 1250400
       },
-      "bird_metrics": {
-        "50": {
-          "encounters": 12,
-          "passes": 12,
-          "collisions": 0
-        },
-        "75": {
-          "encounters": 18,
-          "passes": 18,
-          "collisions": 0
-        },
-        "100": {
-          "encounters": 14,
-          "passes": 14,
-          "collisions": 0
-        }
+      {
+        "episode": 3,
+        "chrome_version": "157.0.8103.79",
+        "survival_seconds": 286.405,
+        "score": 5293,
+        "crashed": true,
+        "truncated": false,
+        "predictions": 5728,
+        "checkpoint_step": 1250400
       }
-    },
-    {
-      "episode": 3,
-      "survival_seconds": 209.279999999999,
-      "score": 2869,
-      "truncated": false,
-      "collision": {
-        "obstacle": {
-          "id": 723,
-          "x": 25,
-          "y": 90,
-          "width": 25,
-          "height": 50,
-          "type": "cactusLarge",
-          "speedOffset": 0
-        },
-        "motion": "descending",
-        "dino_height": 11,
-        "vertical_velocity": 5.7879999999999985
-      },
-      "bird_metrics": {
-        "50": {
-          "encounters": 15,
-          "passes": 15,
-          "collisions": 0
-        },
-        "75": {
-          "encounters": 19,
-          "passes": 18,
-          "collisions": 0
-        },
-        "100": {
-          "encounters": 6,
-          "passes": 6,
-          "collisions": 0
-        }
-      }
-    }
-  ]
+    ]
+  }
 }

@@ -11,7 +11,7 @@ async function command(action) {
 function render(state) {
   status.textContent = state.reason;
   const connected = state.phase !== "disconnected";
-  open.textContent = connected ? "Return to Dino" : "Open Dino & play";
+  open.textContent = connected ? "Return to Dino" : "Open Dino";
   disconnect.disabled = !connected;
 }
 

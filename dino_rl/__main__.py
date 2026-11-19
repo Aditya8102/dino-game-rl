@@ -42,13 +42,6 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("check", "train", "evaluate", "play"):
         sub = commands.add_parser(name)
-        if name == "evaluate":
-            sub.add_argument(
-                "--cpu-cores",
-                type=float,
-                default=1.0,
-                help="Soft CPU budget in controlled-clock diagnostics only.",
-            )
         if name != "play":
             sub.add_argument("--show-browser", action="store_true")
         if name == "check":
@@ -97,12 +90,6 @@ def main() -> None:
                 help="Directory for standalone reports and TensorBoard data.",
             )
             sub.add_argument("--episodes", type=positive_int, default=5)
-            if name == "evaluate":
-                sub.add_argument(
-                    "--controlled-clock",
-                    action="store_true",
-                    help="Legacy diagnostic only; normal evaluation uses native time.",
-                )
             sub.add_argument(
                 "--output", help="Defaults to a timestamped JSON report inside this run."
             )

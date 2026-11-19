@@ -1,9 +1,23 @@
 {
   "format_version": 1,
   "algorithm": "DQN",
+  "artifact_type": "inference",
   "clock_mode": "native",
-  "steps": 1500576,
+  "steps": 1250400,
+  "lifetime_training_steps": 1250400,
   "contract": {
+    "schema": "dino-state-28-v1",
+    "step_ms": 50,
+    "actions": [
+      null,
+      "ArrowUp",
+      "ArrowDown"
+    ],
+    "survival_reward_per_second": 1.0,
+    "collision_penalty": -10.0,
+    "chrome_version": "157.0.8103.79"
+  },
+  "training_contract": {
     "schema": "dino-state-28-v1",
     "step_ms": 50,
     "actions": [
@@ -15,313 +29,71 @@
     "collision_penalty": -10.0,
     "chrome_version": "157.0.8103.78"
   },
-  "evaluation": {
-    "episodes": 8,
-    "mean_reward": 230.20467499999873,
-    "mean_ep_length": 4478.125,
-    "mean_survival_seconds": 240.20467499999873,
-    "median_survival_seconds": 247.302450000001,
-    "mean_score": 3470.25,
-    "time_limit_completions": 0,
-    "bird_metrics": {
-      "50": {
-        "encounters": 131,
-        "passes": 129,
-        "collisions": 1
-      },
-      "75": {
-        "encounters": 165,
-        "passes": 165,
-        "collisions": 0
-      },
-      "100": {
-        "encounters": 133,
-        "passes": 133,
-        "collisions": 0
-      }
-    },
-    "records": [
-      {
-        "episode": 1,
-        "survival_seconds": 172.90049999999871,
-        "score": 2229,
-        "distance": 89141.0678580002,
-        "game_speed": 11.187999999998901,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 6,
-            "passes": 6,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 9,
-            "passes": 9,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 8,
-            "passes": 8,
-            "collisions": 0
-          }
-        },
-        "return": 162.90049999999871,
-        "length": 3223,
-        "truncated": false
-      },
-      {
-        "episode": 2,
-        "survival_seconds": 217.49839999997386,
-        "score": 3022,
-        "distance": 120868.02952799122,
-        "game_speed": 12.52599999999816,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 19,
-            "passes": 18,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 21,
-            "passes": 21,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 10,
-            "passes": 10,
-            "collisions": 0
-          }
-        },
-        "return": 207.49839999997386,
-        "length": 4055,
-        "truncated": false
-      },
-      {
-        "episode": 3,
-        "survival_seconds": 223.46370000001673,
-        "score": 3135,
-        "distance": 125383.83836998869,
-        "game_speed": 12.70499999999806,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 14,
-            "passes": 14,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 17,
-            "passes": 17,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 15,
-            "passes": 15,
-            "collisions": 0
-          }
-        },
-        "return": 213.46370000001673,
-        "length": 4166,
-        "truncated": false
-      },
-      {
-        "episode": 4,
-        "survival_seconds": 246.60559999999205,
-        "score": 3584,
-        "distance": 143343.5933039897,
-        "game_speed": 13.000999999997896,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 16,
-            "passes": 16,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 20,
-            "passes": 20,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 16,
-            "passes": 16,
-            "collisions": 0
-          }
-        },
-        "return": 236.60559999999205,
-        "length": 4598,
-        "truncated": false
-      },
-      {
-        "episode": 5,
-        "survival_seconds": 247.9993000000099,
-        "score": 3611,
-        "distance": 144433.71304200529,
-        "game_speed": 13.000999999997896,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 18,
-            "passes": 18,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 23,
-            "passes": 23,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 25,
-            "passes": 25,
-            "collisions": 0
-          }
-        },
-        "return": 237.9993000000099,
-        "length": 4624,
-        "truncated": false
-      },
-      {
-        "episode": 6,
-        "survival_seconds": 251.19859999999176,
-        "score": 3673,
-        "distance": 146929.84417798728,
-        "game_speed": 13.000999999997896,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 17,
-            "passes": 17,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 16,
-            "passes": 16,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 24,
-            "passes": 24,
-            "collisions": 0
-          }
-        },
-        "return": 241.19859999999176,
-        "length": 4683,
-        "truncated": false
-      },
-      {
-        "episode": 7,
-        "survival_seconds": 280.4404000000039,
-        "score": 4243,
-        "distance": 169735.45575597865,
-        "game_speed": 13.000999999997896,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 22,
-            "passes": 21,
-            "collisions": 1
-          },
-          "75": {
-            "encounters": 30,
-            "passes": 30,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 15,
-            "passes": 15,
-            "collisions": 0
-          }
-        },
-        "return": 270.4404000000039,
-        "length": 5228,
-        "truncated": false
-      },
-      {
-        "episode": 8,
-        "survival_seconds": 281.530900000003,
-        "score": 4265,
-        "distance": 170590.01182198347,
-        "game_speed": 13.000999999997896,
-        "crashed": true,
-        "schema": "dino-state-28-v1",
-        "frame_stalls": 0,
-        "bird_metrics": {
-          "50": {
-            "encounters": 19,
-            "passes": 19,
-            "collisions": 0
-          },
-          "75": {
-            "encounters": 29,
-            "passes": 29,
-            "collisions": 0
-          },
-          "100": {
-            "encounters": 20,
-            "passes": 20,
-            "collisions": 0
-          }
-        },
-        "return": 271.530900000003,
-        "length": 5248,
-        "truncated": false
-      }
-    ]
-  },
-  "best_quality": [
-    247.302450000001,
-    240.20467499999873
-  ],
-  "gradient_updates": 373888,
-  "packages": {
-    "torch": "2.15.0",
-    "stable-baselines3": "2.9.2",
-    "gymnasium": "1.4.0",
-    "playwright": "1.65.1"
-  },
-  "saved_at": "2026-11-14T12:38:00.787073+00:00",
   "config": {
     "format_version": 1,
     "algorithm": "DQN",
     "clock_mode": "native",
-    "seed": 7,
-    "network": [
-      64,
-      64
-    ],
     "learning_rate": 0.0001,
     "gamma": 0.995,
     "batch_size": 64,
     "buffer_size": 100000,
     "learning_starts": 5000,
     "train_freq": 4,
-    "gradient_steps": 8,
     "target_update_interval": 1000,
     "exploration_steps": 50000,
+    "seed": 7,
+    "network": [
+      64,
+      64
+    ],
+    "gradient_steps": 8,
     "torch_threads": 1,
-    "max_seconds": 300,
-    "source_training_steps": 106038,
-    "initialization": "policy_weights_only",
+    "max_seconds": 300.0,
     "workers": 8,
-    "browser_mode": "headless",
-    "exploration_final_eps": 0.01
+    "exploration_final_eps": 0.01,
+    "browser_mode": "headless"
   },
-  "artifact_type": "inference",
-  "completed_run_steps": 2000000,
-  "sha256": "015d1026be12cc423c445956a9949451e1dea341af71f35be3425282693dfc74"
+  "initialization": "random_weights",
+  "gradient_updates": 311352,
+  "packages": {
+    "torch": "2.15.0",
+    "stable-baselines3": "2.9.2",
+    "gymnasium": "1.4.0",
+    "playwright": "1.65.1"
+  },
+  "trained_at": "2026-11-15T21:11:31.414176+00:00",
+  "released_on": "2026-11-19",
+  "source_checkpoint_sha256": "a154443e46814607071d4aee370dd4a33d88d55bc390ba331ccedfe0df04bfe6",
+  "sha256": "05a2877c7eed1fc34b5e3ccd4bb22c2bc41a4d56c490f329b48850b55215a7d0",
+  "evaluation": {
+    "episodes": 8,
+    "mean_survival_seconds": 136.0797500000076,
+    "median_survival_seconds": 135.12769999998767,
+    "mean_score": 2069.875,
+    "time_limit_completions": 0,
+    "bird_metrics": {
+      "50": {
+        "encounters": 91,
+        "passes": 84,
+        "collisions": 7
+      },
+      "75": {
+        "encounters": 78,
+        "passes": 77,
+        "collisions": 1
+      },
+      "100": {
+        "encounters": 86,
+        "passes": 86,
+        "collisions": 0
+      }
+    }
+  },
+  "selection": "Highest median survival, then mean survival, in the fresh three-policy comparison.",
+  "study": {
+    "target_steps": 5000000,
+    "latest_saved_steps": 4198264,
+    "status": "stopped_after_native_render_stalls",
+    "target_completed": false
+  }
 }

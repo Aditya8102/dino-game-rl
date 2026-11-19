@@ -3,8 +3,10 @@
 import json
 import subprocess
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -18,6 +20,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PolicyExportTests(unittest.TestCase):
+    def test_export_rejects_changed_actions_or_timing_before_loading_weights(self):
+        checkpoint, metadata = resolve_checkpoint(ROOT / "models/best.json")
+        for key, value in (("step_ms", 100), ("actions", [None, "ArrowDown", "ArrowUp"])):
+            changed = deepcopy(metadata)
+            changed["contract"][key] = value
+            with (
+                self.subTest(key=key),
+                patch(
+                    "scripts.export_policy.resolve_checkpoint", return_value=(checkpoint, changed)
+                ),
+                patch("scripts.export_policy.DQN.load") as load,
+            ):
+                with self.assertRaisesRegex(ValueError, "input/action contract"):
+                    export_policy("unused", "unused.json")
+                load.assert_not_called()
+
     def test_export_is_deterministic_and_browser_predictions_match_pytorch(self):
         torch.set_num_threads(1)
         checkpoint, _ = resolve_checkpoint(ROOT / "models/best.json")

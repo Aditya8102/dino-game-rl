@@ -2,7 +2,6 @@
 
 import math
 import time
-from datetime import UTC, datetime
 
 import gymnasium as gym
 import numpy as np
@@ -18,7 +17,6 @@ from .config import (
     STEP_MS,
     TREX_CONFIG,
 )
-from .resources import CpuBudget
 
 READ_STATE = """() => {
   const r = Runner.getInstance(), t = r.tRex;
@@ -104,8 +102,6 @@ class DinoEnv(gym.Env):
         self,
         *,
         show_browser: bool = False,
-        realtime: bool = True,
-        cpu_cores: float | None = 1.0,
         max_seconds: float = 300.0,
     ) -> None:
         super().__init__()
@@ -114,12 +110,10 @@ class DinoEnv(gym.Env):
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(28,), dtype=np.float32)
         self.render_mode = "human" if show_browser else None
-        self.realtime = realtime
         self.max_seconds = max_seconds
         self.previous_action = 0
         self._ended = True
         self._closed = False
-        self.budget = None
         self.pw = sync_playwright().start()
         self.browser = None
         try:
@@ -127,8 +121,6 @@ class DinoEnv(gym.Env):
             self.page = self.browser.new_page(
                 viewport={"width": 1000, "height": 700}, device_scale_factor=1
             )
-            if not realtime:
-                self.page.clock.install()
             self.cdp = self.page.context.new_cdp_session(self.page)
             navigation = self.cdp.send("Page.navigate", {"url": "chrome://dino/"})
             if navigation.get("errorText") not in (None, "net::ERR_INTERNET_DISCONNECTED"):
@@ -146,11 +138,6 @@ class DinoEnv(gym.Env):
                 "() => { const r = Runner.getInstance(); return r.activated && !r.playingIntro; }",
                 timeout=10000,
             )
-            if not realtime:
-                # Python's clock API takes epoch seconds/datetime, not JS milliseconds.
-                self.page.clock.pause_at(
-                    datetime.fromtimestamp(self.page.evaluate("Date.now() / 1000") + 0.025, tz=UTC)
-                )
             self.raw = self._read()
             self._validate_game()
             self._boundary = time.monotonic()
@@ -161,7 +148,6 @@ class DinoEnv(gym.Env):
                     raise RuntimeError("Dino did not reach its first collision during setup.")
                 self._advance()
                 self.raw = self._read()
-            self.budget = CpuBudget(cpu_cores) if not realtime and cpu_cores is not None else None
             self.browser_version = self.browser.version
         except BaseException:
             self.close()
@@ -188,13 +174,10 @@ class DinoEnv(gym.Env):
         observation(r, 0)
 
     def _advance(self) -> None:
-        if self.realtime:
-            remaining = self._boundary + STEP_MS / 1000 - time.monotonic()
-            if remaining > 0:
-                time.sleep(remaining)
-            self._boundary = time.monotonic()
-        else:
-            self.page.clock.run_for(STEP_MS)
+        remaining = self._boundary + STEP_MS / 1000 - time.monotonic()
+        if remaining > 0:
+            time.sleep(remaining)
+        self._boundary = time.monotonic()
 
     def _set_action(self, action: int) -> None:
         if action == self.previous_action:
@@ -281,8 +264,6 @@ class DinoEnv(gym.Env):
             )
         elapsed = max(0.0, (self.raw["runningMs"] - previous["runningMs"]) / 1000)
         if not self.raw["crashed"] and elapsed <= 0:
-            if not self.realtime:
-                raise RuntimeError("The game clock did not advance. No transition was recorded.")
             # Native rendering can miss a 50 ms decision interval without pausing.
             self.frame_stalls += 1
             now = time.monotonic()
@@ -292,16 +273,12 @@ class DinoEnv(gym.Env):
                 raise RuntimeError("The native game has not rendered for over one second.")
         else:
             self._no_progress_since = None
-        if not self.realtime and elapsed > (STEP_MS + 20) / 1000:
-            raise RuntimeError("A controlled step advanced too much game time.")
         self.elapsed += elapsed
         terminated = bool(self.raw["crashed"])
         truncated = bool(not terminated and self.elapsed >= self.max_seconds)
         reward = float(elapsed - 10.0 * terminated)
         self._track_birds()
         self._ended = terminated or truncated
-        if self.budget:
-            self.budget.tick()
         return (
             observation(self.raw, self.previous_action),
             reward,

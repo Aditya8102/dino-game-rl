@@ -10,6 +10,7 @@ from torch import nn
 
 from dino_rl.checkpoints import resolve_checkpoint
 from dino_rl.config import (
+    ACTIONS,
     GAME_CONFIG,
     GAME_DIMENSIONS,
     NETWORK_SHAPE,
@@ -23,6 +24,9 @@ from dino_rl.config import (
 def export_policy(checkpoint: str | Path, output: str | Path) -> dict:
     """Export only the supported network and its unchanged observation contract."""
     directory, metadata = resolve_checkpoint(checkpoint)
+    expected = {"schema": SCHEMA, "step_ms": STEP_MS, "actions": list(ACTIONS)}
+    if any(metadata["contract"].get(key) != value for key, value in expected.items()):
+        raise ValueError("The checkpoint input/action contract differs from the browser policy.")
     model = DQN.load(directory / "model.zip", device="cpu")
     network = list(model.q_net.q_net)
     if (
@@ -37,8 +41,6 @@ def export_policy(checkpoint: str | Path, output: str | Path) -> dict:
         != list(zip(NETWORK_SHAPE, NETWORK_SHAPE[1:]))
     ):
         raise ValueError("Browser export supports only this project's 28-64-64-3 ReLU DQN.")
-    if metadata["contract"]["schema"] != SCHEMA:
-        raise ValueError("The checkpoint observation schema differs from the browser policy.")
     layers = [
         {
             "weights": layer.weight.detach().cpu().tolist(),

@@ -4,7 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import gymnasium as gym
 import numpy as np
@@ -17,9 +17,9 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 from dino_rl.checkpoints import contract, save_checkpoint, validate_contract
 from dino_rl.env import DinoEnv, empty_bird_metrics, observation
-from dino_rl.evaluation import bird_scalars, rollout
+from dino_rl.evaluation import bird_scalars, evaluate, rollout
 from dino_rl.parallel import repartition_replay
-from dino_rl.training import train
+from dino_rl.training import Progress, TrainingDQN, train
 
 
 def game_state():
@@ -74,6 +74,85 @@ class FixedEpisode(gym.Env):
 
 
 class ContractTests(unittest.TestCase):
+    def test_interrupt_commits_collection_before_saving_and_restores_action_rng(self):
+        torch.set_num_threads(1)
+        with TemporaryDirectory() as directory:
+            run = Path(directory)
+            env = DummyVecEnv([lambda: FixedEpisode(10)])
+            model = TrainingDQN(
+                "MlpPolicy",
+                env,
+                buffer_size=32,
+                learning_starts=100,
+                train_freq=4,
+                seed=7,
+                device="cpu",
+            )
+            monitor = SimpleNamespace(tick=lambda **kw: None, summary=lambda: {})
+            callback = Progress(monitor, run)
+            step = callback._on_step
+
+            def request_stop():
+                if callback.num_timesteps == 2:
+                    callback.stop_requested = True
+                return step()
+
+            with patch.object(callback, "_on_step", request_stop):
+                model.learn(100, callback=callback)
+            self.assertEqual(model.num_timesteps, 4)
+            self.assertEqual(model._n_calls, 4)
+            self.assertEqual(model.replay_buffer.size(), 4)
+            config = {
+                "clock_mode": "native",
+                "browser_mode": "headless",
+                "exploration_steps": 50_000,
+                "max_seconds": 300,
+            }
+            save_checkpoint(model, env, run, config, None, (-1, -1), monitor)
+            expected_actions = [model.action_space.sample() for _ in range(10)]
+            (run / "baselines.json").write_text("{}")
+            args = SimpleNamespace(
+                workers=1,
+                run=str(run),
+                resume=str(run / "latest.json"),
+                show_browser=False,
+                seed=7,
+                max_seconds=300,
+                steps=8,
+                checkpoint_every=4,
+                eval_episodes=1,
+                exploration_final=0.01,
+            )
+            restored_env = DummyVecEnv([lambda: FixedEpisode(10)])
+            actual_learn = DQN.learn
+
+            def inspect_then_continue(restored, **kwargs):
+                self.assertEqual(restored.num_timesteps, 4)
+                self.assertEqual(restored._n_calls, 4)
+                self.assertEqual(restored.replay_buffer.size(), 4)
+                self.assertEqual(
+                    [restored.action_space.sample() for _ in range(10)], expected_actions
+                )
+                return actual_learn(restored, **kwargs)
+
+            with (
+                patch("dino_rl.training.training_env", return_value=restored_env),
+                patch("dino_rl.training.ResourceMonitor", return_value=monitor),
+                patch("dino_rl.training.os.nice"),
+                patch.object(DQN, "learn", inspect_then_continue),
+            ):
+                train(args)
+            selected = json.loads((run / "latest.json").read_text())
+            restored = DQN.load(run / selected["checkpoint"] / "model.zip", device="cpu")
+            self.assertEqual(restored.num_timesteps, 8)
+            self.assertEqual(restored._n_calls, 8)
+            self.assertEqual(
+                restored.replay_buffer.size(), 0
+            )  # Replay is a separate checkpoint file.
+            restored.load_replay_buffer(run / selected["checkpoint"] / "replay.pkl")
+            self.assertEqual(restored.replay_buffer.size(), 8)
+            env.close()
+
     def test_chrome_patch_acceptance_preserves_every_other_contract_field(self):
         saved = contract(SimpleNamespace(browser_version="157.0.8103.78"))
         current = SimpleNamespace(browser_version="157.0.8103.79")
@@ -189,7 +268,7 @@ class ContractTests(unittest.TestCase):
 
             with (
                 patch("dino_rl.training.training_env", return_value=environment),
-                patch("dino_rl.training.CpuBudget", return_value=budget),
+                patch("dino_rl.training.ResourceMonitor", return_value=budget),
                 patch.object(DQN, "load") as load,
                 patch.object(DQN, "learn", inspect_before_learning),
                 patch.object(environment, "close", wraps=environment.close) as close,
@@ -202,6 +281,32 @@ class ContractTests(unittest.TestCase):
             self.assertNotIn("source_checkpoint", saved)
             self.assertNotIn("resume_checkpoint", saved)
             self.assertFalse((Path(directory) / "checkpoints").exists())
+
+    def test_environment_is_closed_when_initial_resource_sampling_fails(self):
+        for command, module, factory in (
+            (train, "training", "training_env"),
+            (evaluate, "evaluation", "DinoEnv"),
+        ):
+            with self.subTest(command=module), TemporaryDirectory() as directory:
+                args = SimpleNamespace(
+                    workers=8,
+                    run=directory,
+                    resume=None,
+                    max_seconds=300,
+                    show_browser=False,
+                    command="evaluate",
+                    checkpoint="models/best.json",
+                )
+                environment = Mock()
+                with (
+                    patch(f"dino_rl.{module}.{factory}", return_value=environment),
+                    patch(
+                        f"dino_rl.{module}.ResourceMonitor", side_effect=PermissionError("sample")
+                    ),
+                ):
+                    with self.assertRaisesRegex(PermissionError, "sample"):
+                        command(args)
+                environment.close.assert_called_once()
 
     def test_fresh_run_refuses_to_overwrite_an_existing_run(self):
         with TemporaryDirectory() as directory:
@@ -292,6 +397,7 @@ class ContractTests(unittest.TestCase):
             (run / "best.json").write_text('{"checkpoint":"previous-best"}')
             model = SimpleNamespace(
                 num_timesteps=10,
+                action_space=spaces.Discrete(3, seed=7),
                 n_envs=1,
                 _n_updates=1,
                 replay_buffer=SimpleNamespace(size=lambda: 10, n_envs=1),
@@ -314,15 +420,13 @@ class ContractTests(unittest.TestCase):
             saved = run / json.loads((run / "latest.json").read_text())["checkpoint"]
             self.assertIsNone(json.loads((saved / "metadata.json").read_text())["evaluation"])
 
-    def frame_test_env(self, realtime):
+    def frame_test_env(self):
         env = DinoEnv.__new__(DinoEnv)
-        env.realtime = realtime
         env.action_space = spaces.Discrete(3)
         env.previous_action = 0
         env._ended = False
         env.elapsed = 0.0
         env.max_seconds = 120
-        env.budget = None
         env.frame_stalls = 0
         env._birds = {}
         env.bird_metrics = empty_bird_metrics()
@@ -342,7 +446,7 @@ class ContractTests(unittest.TestCase):
         return env
 
     def test_native_missed_frame_is_not_a_collision_or_runner_failure(self):
-        env = self.frame_test_env(True)
+        env = self.frame_test_env()
         _, reward, terminated, truncated, info = env.step(0)
         self.assertEqual(reward, 0)
         self.assertFalse(terminated or truncated)
@@ -352,12 +456,8 @@ class ContractTests(unittest.TestCase):
         self.assertAlmostEqual(reward, 0.05)
         self.assertIsNone(env._no_progress_since)
 
-    def test_controlled_clock_still_requires_progress(self):
-        with self.assertRaisesRegex(RuntimeError, "clock did not advance"):
-            self.frame_test_env(False).step(0)
-
     def test_sustained_native_freeze_is_still_an_error(self):
-        env = self.frame_test_env(True)
+        env = self.frame_test_env()
         with patch("dino_rl.env.time.monotonic", side_effect=[10, 11.1]):
             env.step(0)
             with self.assertRaisesRegex(RuntimeError, "over one second"):
@@ -393,7 +493,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(list(obs[25:28]), [0, 0, 1])
 
     def test_bird_counts_track_individual_birds_and_separate_height_outcomes(self):
-        env = self.frame_test_env(True)
+        env = self.frame_test_env()
         initial_info = env._info()
 
         def see(*birds, crashed=False):
@@ -478,7 +578,7 @@ class ContractTests(unittest.TestCase):
             resumed_env.envs[0].browser_version = "157.0.8103.78"
             with (
                 patch("dino_rl.training.training_env", return_value=resumed_env),
-                patch("dino_rl.training.CpuBudget", return_value=budget),
+                patch("dino_rl.training.ResourceMonitor", return_value=budget),
                 patch("dino_rl.training.os.nice"),
                 patch.object(DQN, "learn", inspect_then_learn),
             ):
@@ -501,7 +601,7 @@ class ContractTests(unittest.TestCase):
             args.accept_chrome_version = "157.0.8103.79"
             with (
                 patch("dino_rl.training.training_env", return_value=continued_env),
-                patch("dino_rl.training.CpuBudget", return_value=budget),
+                patch("dino_rl.training.ResourceMonitor", return_value=budget),
                 patch("dino_rl.training.os.nice"),
             ):
                 train(args)

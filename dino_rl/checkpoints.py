@@ -16,7 +16,7 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import VecEnv
 
 from .env import ACTIONS, SCHEMA, STEP_MS, DinoEnv
-from .resources import CpuBudget
+from .resources import ResourceMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ def save_checkpoint(
     config: dict,
     evaluation: dict | None,
     best_quality: tuple[float, float],
-    budget: CpuBudget,
+    monitor: ResourceMonitor,
 ) -> tuple[float, float]:
     """Save learning state before publishing latest/best checkpoint pointers."""
     quality = (
@@ -100,6 +100,7 @@ def save_checkpoint(
                 "python": random.getstate(),
                 "numpy": np.random.get_state(),
                 "torch": torch.get_rng_state(),
+                "action_space": model.action_space.np_random.bit_generator.state,
             },
             handle,
         )
@@ -120,7 +121,7 @@ def save_checkpoint(
             name: version(name)
             for name in ("torch", "stable-baselines3", "gymnasium", "playwright")
         },
-        "resources": budget.summary(),
+        "resources": monitor.summary(),
         "saved_at": datetime.now(UTC).isoformat(),
     }
     write_json(checkpoint / "metadata.json", metadata)
